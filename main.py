@@ -1,4 +1,4 @@
-import pygame, random
+import pygame, random, math, os
 
 pygame.init()
 
@@ -8,21 +8,33 @@ screen = pygame.display.set_mode((screenwidth, screenheight))
 clock = pygame.time.Clock()
 image_of_spaceship = pygame.image.load('graphics/player/shipsmall.png')
 image_of_enemy = pygame.image.load('graphics/enemies/invade.png')
-seeker_image =  pygame.image.load('graphics/enemies/seeker.png')
+seeker_image = pygame.image.load('graphics/enemies/seeker/1.png')
 frame_counter = 0
 icon = pygame.image.load('graphics/misc/retroFutureTumblr.ico')
 pygame.display.set_icon(icon)
 pygame.display.set_caption("Retro Future")
+
+
+
+
+animation_speed_per_s = 0.25
+animation_counter = 0
+
+# writing FPS
+font = pygame.font.Font(None, 36)
+
+
 def frame_tracker():
     global frame_counter
-    if frame_counter >= 60:
+    if frame_counter >= 59:
         frame_counter = 0
     else:
         frame_counter += 1
-    print(frame_counter)
+    print('current frame:',frame_counter)
+
 class Level:
     def __init__(self):
-        self.BgImg = pygame.image.load('graphics/bg/800600centralcross.png')
+        self.BgImg = pygame.transform.scale(pygame.image.load('graphics/bg/retroaesthetic_dark.png'), (900,600))
 
 
 # need to set better boundaries by including the size of the sprite in the calculation
@@ -33,36 +45,83 @@ class Enemy(pygame.sprite.Sprite):
         super().__init__()
         self.rect = self.image.get_rect()
         self.rect.center = [x,y]
+
+        # to re-scale the image
+        self.image_ratio = (self.image.get_width()/self.image.get_height())
+        self.image_size_percent = 10
+        self.scaled_width = int(screenwidth * self.image_size_percent / 100)
+        self.scaled_height = int(self.scaled_width / self.image_ratio)
+        self.image = pygame.transform.scale(self.image, (self.scaled_width, self.scaled_height))
         self.sprite_width = self.image.get_width()
         self.sprite_height = self.image.get_height()
-        self.speed = 4
+        self.sprites = []
+
+        # for rotation
+
+
+    def undulate(self):
+        self.rotation_counter += self.rotation_speed
+        if self.rotation_counter > self.rotation_degrees:
+            self.rotation_speed *= -1
+        if self.rotation_counter < -self.rotation_degrees:
+            self.rotation_speed *= -1
+
+        self.image = pygame.transform.rotate(self.original_image, self.rotation_counter)
+        self.rect = self.image.get_rect(center=self.rect.center)
+
+    def update_on_screen_position(self):
+        screen.blit(self.image, self.rect)
 
     def animate(self):
-        pass
-        # deform shape horizontally and vertically to create illusion of pulsing etc
+        global animation_counter
+        folder_path = 'graphics/enemies/seeker'
+        if not self.sprites:
+            for filename in os.listdir(folder_path):
+                file_path = os.path.join(folder_path, filename).replace('\\','/')
+                self.sprites.append(file_path)
 
-    def update_on_screen_position(self, x, y):
-        screen.blit(self.image, (x, y))
+        if frame_counter % (60 / animation_speed_per_s) == 0:
+            self.original_image = pygame.image.load(self.sprites[animation_counter])  # can be compressed into one
+            self.original_image = pygame.transform.scale(self.original_image, (self.scaled_width, self.scaled_height))
+            if len(self.sprites)-1 <= animation_counter:
+                animation_counter = 0
+            else:
+                animation_counter += 1
+
+        # for debugging, delete when ready
+        # print('x',animation_counter)
+        # print('x = ',animation_counter,'||', 'frame counter/speed:',(frame_counter % (60 / animation_speed_per_s))
+        # print('sprites list:', self.sprites)
+
+
+
+# frame_counter = 0
+# animation_speed_per_s = 2
+
+# 60 frames 1 second, 2x per second, want 1 animation per 30 frames...
+# frame_counter/animation_speed_per_s = 30
+
 
     def reorientation_towards_player(self, playerx, playery):
         pass
         # self.x_position  and something to do with player.xpos, ypos
-    def undulate(self):
-        if frame_counter % 20 == 0:
-            self.image = pygame.transform.scale(self.image, (self.sprite_width+5, self.sprite_height+5))
-        elif frame_counter % 10 == 5:
-            self.image = pygame.transform.scale(self.image, (self.sprite_width - 5, self.sprite_height - 5))
-
 
 
 class Seeker(Enemy):
     def __init__(self, x, y):
 
         self.image = seeker_image
-        super().__init__(x, y)  # the location of the super() does matter!
-        self.image = pygame.transform.scale(seeker_image, (self.sprite_width, self.sprite_height))
+
+        super().__init__(x, y)  # the location of the super() does matter! being here allows the parent class to edit
+                                # the self.image before it gets set to original_image
+
+        self.original_image = self.image
         self.speed = 8
 
+        # to rotate enemies
+        self.rotation_counter = 0
+        self.rotation_degrees = 10
+        self.rotation_speed = 0.5
 
 
 class Player:
@@ -86,7 +145,9 @@ class Player:
         self.get_direction_and_rotate_player_sprite()
         self.boost_button()
         self.update_on_screen_position(self.x_position, self.y_position)
+
     def get_direction_and_rotate_player_sprite(self):
+
         keys = pygame.key.get_pressed()
 
         # Code to ensure there are no other directional inputs, i.e. we are not diagonal
@@ -168,9 +229,11 @@ level = Level()
 player = Player()
 enemies = pygame.sprite.Group()
 
-for x in range(5):
+for i in range(5):
     new_enemy = Seeker(random.randint(0,screenwidth), random.randint(0, screenheight))
+    # new_enemy = Seeker(random.randint(0,screenwidth), random.randint(0, screenheight))
     enemies.add(new_enemy)
+
 running = True
 
 while running:
@@ -179,16 +242,28 @@ while running:
             running = False
     screen.blit(level.BgImg, (0, 0))
     player.all()
-    # enemies.undulate()
     for enemy in enemies:
         enemy.undulate()
-        enemy.update_on_screen_position((enemy.rect.center[0]-(enemy.sprite_width/2)),enemy.rect.center[1]-(enemy.sprite_height/2))
+        enemy.update_on_screen_position()
+        enemy.animate()
+    # enemies.draw(screen)
     # player.user_input_and_change_xy_pos()
     # player.get_direction_and_rotate_player_sprite()
     # player.boost_button()
     # player.update_on_screen_position(player.x_position, player.y_position)
     # enemy1.update_on_screen_position(enemy1.x_position,enemy1.y_position)
-    enemies.draw(screen)
-    pygame.display.update()
+    # enemies.draw(screen)
+    # pygame.display.update()  # this can be used for specific parts of teh screen if fed as argument e.g. update(player.rect)
     frame_tracker()
+
+    #################################
+    ### this section just for FPS ###
+    text = font.render(str(frame_counter), True, (0, 0, 0))
+    text_rect = text.get_rect()
+    text_rect.topleft = (10, 10)
+    screen.blit(text, text_rect)
+    #################################
+
+
+    pygame.display.flip()
     clock.tick(60)

@@ -1,15 +1,8 @@
 
-currently undulate() function is working, but the makeshift drawing of enemy sprites:
-
-    for enemy in enemies:
-        enemy.undulate()
-        enemy.update_on_screen_position((enemy.rect.center[0]-(enemy.sprite_width/2)),enemy.rect.center[1]-(enemy.sprite_height/2))
-
-makes it slowly draw itself into nothingspace, in a way that it gets cut off, which is a little strange.
 
 
+next: make the seeker move towards the player's location, direct straight line for now.
 
+2: make seeker rotate only horizontally to face direction of player
 
-next: make the seeker move towards te player's location, direct straight line for now.
-
-3: make seeker rotate only horizontally to face direction of player
+3: prettify code, find way to hide excess global variables
