@@ -8,6 +8,17 @@ currently undulate() function is working, but the makeshift drawing of enemy spr
 makes it slowly draw itself into nothingspace, in a way that it gets cut off, which is a little strange.
 
 
+next: make the seeker move towards the player's location, direct straight line for now.
+
+2: make seeker rotate only horizontally to face direction of player
+
+5: Enemy undulate() cannot account for 360 degree spins, will always rotate back when reaching the limit
 
 
+
+0: I need to change all moving of images to moving of rects for collision to work _._
+- wasn't too bad, only had to change player's rect. remember to update rects and draw images...
+
+
+1: create hitboxes to detect enemy hitting player
 

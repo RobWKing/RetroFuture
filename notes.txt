@@ -1,8 +1,27 @@
 
 
+0: for when colliderect = True, can probably do something using self. to remove self from the group, if the group
+    is a regular list/tuple, maybe can .remove()?
 
-next: make the seeker move towards the player's location, direct straight line for now.
 
-2: make seeker rotate only horizontally to face direction of player
+2: create class for ball object, rotates 360 and bounces around the screen slowly
 
 3: prettify code, find way to hide excess global variables
+
+4: find a way to make this         self.image = pygame.image.load('graphics/enemies/seeker/1.png')
+    into a part of the Enemy class using something like:
+                            folder_path = f'graphics/enemies/{type(enemy).__name__.lower()}'
+
+5: in player class add self.is_boosting, add to animate() to load different sprites when boosting
+
+6: when creating bullets, create parent class with future child classes in mind for different bullet types
+
+7: create bomb class
+
+8: make it so enemies cannot spawn within a certain radius of the player's location
+
+9: Twirler's current code can make it twirl out of the map, add limits later
+
+10: wedge enemy who flies across screen like asteroid storm
+
+11: wedge makes announcement on screen in some way, maybe sound
