@@ -1,16 +1,14 @@
 
+the current way animations are set is that they begin at every 1 second or 0.5 second interval
+if a new seeker spawns at these intervals, it won't have any spawn-in animation at all
 
-0: for when colliderect = True, can probably do something using self. to remove self from the group, if the group
-    is a regular list/tuple, maybe can .remove()?
+
+11: try to fix up player animate(), messy as fuck
 
 
-2: create class for ball object, rotates 360 and bounces around the screen slowly
 
 3: prettify code, find way to hide excess global variables
 
-4: find a way to make this         self.image = pygame.image.load('graphics/enemies/seeker/1.png')
-    into a part of the Enemy class using something like:
-                            folder_path = f'graphics/enemies/{type(enemy).__name__.lower()}'
 
 5: in player class add self.is_boosting, add to animate() to load different sprites when boosting
 
@@ -18,10 +16,15 @@
 
 7: create bomb class
 
-8: make it so enemies cannot spawn within a certain radius of the player's location
 
 9: Twirler's current code can make it twirl out of the map, add limits later
 
 10: wedge enemy who flies across screen like asteroid storm
 
 11: wedge makes announcement on screen in some way, maybe sound
+
+12: flesh out levels to load different backgrounds etc, and for enemies to be spawned inside the level class functions
+
+13: can say len(enemies) == 0 to determine level is finished
+
+14: # later edit self.rect to take from a smaller image to reduce frustration in hitbox detection

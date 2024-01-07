@@ -7,18 +7,14 @@ screenheight = 600
 screen = pygame.display.set_mode((screenwidth, screenheight))
 clock = pygame.time.Clock()
 frame_counter = 0
-icon = pygame.image.load('graphics/misc/retroFutureTumblr.ico')
+icon = pygame.image.load('graphics/misc/retroFutureTumblr.png')
 pygame.display.set_icon(icon)
 pygame.display.set_caption("Retro Future")
 
 
 
 
-animation_speed_per_s = 1  # cannot go below 1
-animation_counter = 0
 
-player_animation_counter = 0
-player_animation_speed_per_s = 15  # can remove this variable when happy with speed and place directly in animate()
 # for writing FPS to screen
 font = pygame.font.Font(None, 36)
 
@@ -48,8 +44,19 @@ def frame_tracker():
 
 class Level:
     def __init__(self):
-        self.BgImg = pygame.transform.scale(pygame.image.load('graphics/bg/retroaesthetic_dark.png'), (900,600))
+        self.currentlevel = 1
+        self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{self.currentlevel}.png'), (900,600))
 
+    def level_transition(self):
+
+        # later will create custom enemies per level, have that list .pop entries to enemies
+        # then when that list len = 0 and len enemies = 0, level is complete
+
+        if len(enemies) == 0:
+            self.currentlevel = 2
+            self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{self.currentlevel}.png'), (900, 600))
+            player.x_position = screenwidth / 2 - player.sprite_width / 2
+            player.y_position = screenheight / 2 - player.sprite_height / 2
 
 # need to set better boundaries by including the size of the sprite in the calculation
 class Enemy(pygame.sprite.Sprite):
@@ -61,6 +68,7 @@ class Enemy(pygame.sprite.Sprite):
         self.rect.center = [x,y]
         # to re-scale the image
         self.image_ratio = (self.image.get_width()/self.image.get_height())
+        self.image = pygame.image.load(f'graphics/enemies/spawn_in/{self.__class__.__name__.lower()}/1.png')
         self.scaled_width = int(screenwidth * self.image_size_percent / 100)
         self.scaled_height = int(self.scaled_width / self.image_ratio)
         self.image = pygame.transform.scale(self.image, (self.scaled_width, self.scaled_height))  # can be deleted?
@@ -69,23 +77,23 @@ class Enemy(pygame.sprite.Sprite):
         self.sprites = []
         self.original_image = self.image
         self.flipped_image = self.image
-
+        self.animation_counter = 0
+        self.animation_speed_per_s = 2
 
     def animate(self):
-        global animation_counter
         # bro this code is so sick, well chuffed
         folder_path = f'graphics/enemies/{type(enemy).__name__.lower()}'
         if not self.sprites:
             for filename in os.listdir(folder_path):
                 file_path = os.path.join(folder_path, filename).replace('\\','/')
                 self.sprites.append(file_path)
-        if frame_counter % (60 / animation_speed_per_s) == 0:
-            self.original_image = pygame.image.load(self.sprites[animation_counter])  # can be compressed into one
+        if frame_counter % (60 / self.animation_speed_per_s) == 0:
+            self.original_image = pygame.image.load(self.sprites[self.animation_counter])  # can be compressed into one
             self.original_image = pygame.transform.scale(self.original_image, (self.scaled_width, self.scaled_height))
-            if len(self.sprites)-1 <= animation_counter:
-                animation_counter = 0
+            if len(self.sprites)-1 <= self.animation_counter:
+                self.animation_counter = 0
             else:
-                animation_counter += 1
+                self.animation_counter += 1
 
 
     def flip_towards_player(self):
@@ -96,6 +104,8 @@ class Enemy(pygame.sprite.Sprite):
                 self.flipped_image = self.original_image
             elif player.x_position - (self.rect.topleft[0] + self.sprite_width / 4) < 0:
                 self.flipped_image = flipped_image
+        else:
+            self.flipped_image = self.original_image
 
 
     def undulate(self):
@@ -117,6 +127,9 @@ class Enemy(pygame.sprite.Sprite):
         # self.rect = self.image.get_rect(center=self.rect.center)
         if self.rect.colliderect(player.rect):
             print('boom!')
+            enemies.remove(self)
+            player.is_alive = False
+            player.animation_counter = 0
 
     def update_on_screen_position(self):
         # self.rect = self.image.get_rect(center=self.rect.center)
@@ -244,23 +257,36 @@ class Player(pygame.sprite.Sprite):
 
     def __init__(self):
         super().__init__()
-        self.playerImg = pygame.image.load('graphics/player/invadersmalls1.png')
+        self.playerImg = pygame.image.load('graphics/player/standard/invadersmalls1.png')
+        # later edit self.rect to take from a smaller image to reduce frustration in hitbox detection
         self.rect = self.playerImg.get_rect()
         self.sprite_width = self.playerImg.get_width()
         self.sprite_height = self.playerImg.get_height()
-        self.speed = 6
-        self.boost_length = 10
         self.x_position = screenwidth / 2 - self.sprite_width / 2
         self.y_position = screenheight / 2 - self.sprite_height / 2
+        self.rect.x, self.rect.y = self.x_position, self.y_position
+
         self.rotation_angle = 0
         self.y_in_bounds = True
         self.x_in_bounds = True
         self.sprites = []
         self.original_image = self.playerImg
+        self.is_boosting = False
+        self.animation_counter = 0
+        self.animation_speed_per_s = 15  # can remove this variable when happy with speed and place directly in animate()
+
+
+
+        # status
+        self.is_alive = True
+        self.speed = 6
+        self.boost_length = 10
+        self.folder_path = None
 
     def all(self):
         self.check_in_bounds()
         self.user_input_and_change_xy_pos()
+        self.player_status()
         self.animate()
         self.get_direction_and_rotate_player_sprite()
         self.boost_button()
@@ -302,6 +328,7 @@ class Player(pygame.sprite.Sprite):
         self.playerImg = pygame.transform.rotate(self.original_image, self.rotation_angle)
 
     def boost_button(self):
+        global player_animation_counter
         keys = pygame.key.get_pressed()
 
         # move the correct direction if in bounds
@@ -310,6 +337,7 @@ class Player(pygame.sprite.Sprite):
             if self.x_in_bounds:
                 if self.rotation_angle in [45, 90, 135]:
                     self.x_position -= self.boost_length
+
                 if self.rotation_angle in [225, 270, 315]:
                     self.x_position += self.boost_length
             if self.y_in_bounds:
@@ -317,6 +345,14 @@ class Player(pygame.sprite.Sprite):
                     self.y_position -= self.boost_length
                 if self.rotation_angle in [135, 180, 225]:
                     self.y_position += self.boost_length
+            self.is_boosting = True
+            self.sprites = []
+            # player_animation_counter = 0
+        else:
+            self.is_boosting = False
+            self.sprites = []
+            # player_animation_counter = 0
+
 
     def check_in_bounds(self):
         # check x position is inside window + sprite + boost_length
@@ -346,23 +382,42 @@ class Player(pygame.sprite.Sprite):
             self.y_position += 1 * self.speed
 
         # update rect
-        self.rect.x = self.x_position
-        self.rect.y = self.y_position
+        self.rect.x, self.rect.y = self.x_position, self.y_position
 
     def animate(self):
-        global player_animation_counter
-        folder_path = 'graphics/player/'
-        if not self.sprites:
-            for filename in os.listdir(folder_path):
-                file_path = os.path.join(folder_path, filename).replace('\\','/')
-                self.sprites.append(file_path)
-        if frame_counter % (60 / player_animation_speed_per_s) == 0:
-            self.original_image = pygame.image.load(self.sprites[player_animation_counter])  # can be compressed into one
-            # self.playerImg = pygame.transform.scale(self.playerImg, (self.scaled_width, self.scaled_height))
-            if len(self.sprites)-1 <= player_animation_counter:
-                player_animation_counter = 0
+        if self.is_alive:
+            if self.is_boosting:
+                self.folder_path = 'graphics/player/boosting/'
             else:
-                player_animation_counter += 1
+                self.folder_path = 'graphics/player/standard/'
+        else:  # (if self.is_alive = False)
+            if self.animation_counter == 0:  # this works but only by waiting till the loop begins, causing delay
+                # before the sprite is loaded, fixed by a workaround of adding player.animation_counter = 0 into
+                # the enemy check_collision_with_player function
+                self.sprites = []
+                self.folder_path = 'graphics/player/death/'
+        if self.folder_path is None:  # backup to prevent complaining
+            self.folder_path = 'graphics/player/standard/'
+
+        if not self.sprites:
+            for filename in os.listdir(self.folder_path):
+                file_path = os.path.join(self.folder_path, filename).replace('\\','/')
+                self.sprites.append(file_path)
+
+        if frame_counter % (60 / self.animation_speed_per_s) == 0:
+            self.original_image = pygame.image.load(self.sprites[self.animation_counter])  # can be compressed into one
+            # self.playerImg = pygame.transform.scale(self.playerImg, (self.scaled_width, self.scaled_height))
+            if len(self.sprites)-1 <= self.animation_counter:
+                self.animation_counter = 0
+            else:
+                self.animation_counter += 1
+
+
+    def player_status(self):
+        situation = 0
+        if situation == 1:
+            self.is_alive = False
+
 
     def update_on_screen_position(self, x, y):
         screen.blit(self.playerImg, (x, y))
@@ -389,25 +444,47 @@ class Bullet(pygame.sprite.Sprite):
     def fired(self):
         pass
 
-
-
-
 level = Level()
 player = Player()
 enemies = pygame.sprite.Group()
 
-for i in range(10):
-    enemy = Seeker(random.randint(-300,int(screenwidth*1.5)), random.randint(-300, int(screenheight*1.5)))
-    # new_enemy = Seeker(random.randint(0,screenwidth), random.randint(0, screenheight))
-    enemies.add(enemy)
 
-for i in range(10):
-    enemy = Bouncer(random.randint(-300,int(screenwidth*1.5)), random.randint(-300, int(screenheight*1.5)))
-    enemies.add(enemy)
 
-for i in range(10):
-    enemy = Twirler((random.randint(50,screenwidth-50)), random.randint(50, screenheight-50))
-    enemies.add(enemy)
+
+
+def create_enemy(name, quantity):
+    def generate_safe_position(potential_x, potential_y, min_distance_from_player):
+        if ((player.rect.x - min_distance_from_player) <= potential_x <= (player.rect.x + min_distance_from_player) or
+                player.rect.y - min_distance_from_player <= potential_y < - player.rect.y + min_distance_from_player):
+            return None
+        return (potential_x, potential_y)
+    enemy_name = name.capitalize()
+    for i in range(quantity):
+        co_ords = None
+        while co_ords is None:
+            # could put these three into a dictionary to reduce code length and increase aesthetics, remove if statements
+            # later will probably move the spawning into their own classes anyway
+            if enemy_name == 'Twirler':
+                co_ords = generate_safe_position(random.randint(0,screenwidth), random.randint(0, screenheight),
+                                             200)
+            elif enemy_name == 'Bouncer':
+                co_ords = generate_safe_position(random.randint(-50, screenwidth + 50),
+                                                 random.randint(-50, screenheight + 50),
+                                                 100)
+            elif enemy_name == 'Seeker':
+                co_ords = generate_safe_position(random.randint(-300, int(screenwidth * 1.5)),
+                                                 random.randint(-300, int(screenheight * 1.5)),
+                                                 100)
+        enemy = globals()[enemy_name](co_ords[0], co_ords[1])
+        enemies.add(enemy)
+        # spawn_sound = pygame.mixer.Sound(f'sound/{enemy_name}.wav')
+        # spawn_sound.play()
+
+
+create_enemy('bouncer', 1)
+create_enemy('twirler', 1)
+create_enemy('seeker', 1)
+
 running = True
 
 while running:
@@ -434,6 +511,17 @@ while running:
     # pygame.display.update()  # this can be used for specific parts of teh screen if fed as argument e.g. update(player.rect)
     frame_tracker()
 
+    if len(enemies) == 0:
+        print('level cleared')
+    if len(enemies) < 20:
+        if frame_counter == 7:
+            create_enemy('seeker', 1)
+        if frame_counter == 15:
+            create_enemy('twirler', 1)
+        if frame_counter == 22:
+            create_enemy('bouncer', 1)
+    level.level_transition()
+
     #################################
     ### this section just for FPS ###
     text = font.render(str(frame_counter), True, (0, 0, 0))
@@ -441,6 +529,5 @@ while running:
     text_rect.topleft = (10, 10)
     screen.blit(text, text_rect)
     #################################
-
     pygame.display.flip()
     clock.tick(60)
