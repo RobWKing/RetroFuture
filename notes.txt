@@ -1,0 +1,54 @@
+
+5: give all enemies self.score values, so can have a level about reaching a certain score
+
+6: when creating bullets, create parent class with future child classes in mind for different bullet types
+
+7: create bomb class
+
+8: remove the rotation angle for pieces that don't use it. if it's an Enemy function, see if there's a way to
+create an if statement in the parent class based on child name
+
+9b: Change Bouncer's code so that they don't re-direct until they hit their target, not a time limit
+    Also change it to pick co-ords near the edge of the arena using the code from the create enemy function
+
+14: look at how to transform shape for spawn in, maybe elongate, change colour, etc
+
+11: wedge makes announcement on screen in some way, maybe sound
+
+12: flesh out levels to load different backgrounds etc, and for enemies to be spawned inside the level class functions
+
+
+15: make animations smarter to be maybe a dictionary linking to each part with a self.status instead of the nonsense it is now
+so the path will be graphics/enemy/{self.status} or something like that, maybe don't need a dictionary
+then can add status updates to various functions, e.g. bullet hit_detection, enemy.status = dead
+
+15a: try to fix up player animate(), messy as fuck
+
+
+
+18: change create_enemy to not be a while, but use if's to establish which side player is on and then do calculations
+    using random.choice
+
+20: player's hitbox works and is aligned, but is a bit wonky when diagonal. feels okay in gameplay
+    don't necessarily need to fix
+
+
+
+
+
+---- ideas ----
+
+level: kill on impact - kill all enemies except bouncers, kill more than 2 bouncers = fail
+level: guns broken, survive x seconds
+level: don't shoot the bomb?
+level: make a grid with xxxxx, do a x * pixel_size(image_width of enemy), for i in row, for j in column, to make a precision
+    level of navigating through twirlers or something
+level: twirlers come at you in waves, need to dodge them all to survive the timelimit
+change boost to ram? single use item?
+level: fast enemies, maybe bouncers? set self.speed to a variable, let variable be altered in level, give player fast-firing gun
+level: big twirlers stretched to be very long, level of dodging between their blades
+level: reaction test: player cannot move, wedges flying horizontally, have to press shoot, if wedge hits edge = game over
+
+
+level complete: warp point appears, go into warp point to end level
+3: change bullets to be mouse click, not direction of ship (currently changed to arrow keys with limited shots)
