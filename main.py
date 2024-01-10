@@ -1,5 +1,5 @@
 import pygame, random, math, os
-
+from spawns import spawn_data, calculate_total_enemies
 pygame.init()
 
 screenwidth = 800
@@ -10,9 +10,11 @@ frame_counter = 0
 icon = pygame.image.load('graphics/misc/retroFutureTumblr.png')
 pygame.display.set_icon(icon)
 pygame.display.set_caption("Retro Future")
-# for writing FPS to screen
-fps_font = pygame.font.SysFont("Consolas", 20)
 
+# fonts
+fps_font = pygame.font.SysFont("Consolas", 20)
+score_font_path = "fonts/AerologicaRegular-K7day.ttf"
+score_font = pygame.font.Font(score_font_path, 50)
 def frame_tracker():
     global frame_counter
     if frame_counter >= 59:
@@ -20,7 +22,9 @@ def frame_tracker():
         level.seconds_elapsed += 1
     else:
         frame_counter += 1
-    print('current frame:', frame_counter)
+    print(level.current_score)
+    # print('current frame:', frame_counter)
+
 # more beautiful way to track frames without global variable, but less efficient
 # requires changing all instances of frame_counter to tracker(), calling the function versus just reading a global variable
 # def frame_tracker():
@@ -43,40 +47,50 @@ class Level:
         self.current_level = 1
         # 900 x 600 is for the temporary image, otherwise later will be screenwidth, screenheight
         self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{self.current_level}.png'), (900, 600))
-        self.spawned_enemies = 0
-        self.defeated_enemies = 0
-        self.seconds_elapsed = 0
-        self.current_level_total_enemies = 1
+        self.data = spawn_data
+
+
+
+        self.score_objective = False
         self.current_score = 0
-        self.score_goal = 0
-        self.other_level_finished_flag = False
+        self.score_goal = 10000
+
+        self.time_objective = False
+        self.seconds_elapsed = 0
+        self.time_goal = 11
+
+        self.kill_objective = True
+        self.current_level_total_enemies = (calculate_total_enemies(spawn_data)).get(self.current_level)
+        self.spawned_enemies = 0  # this may now be obsolete
+        self.defeated_enemies = 0
+
+        self.other_level_finished_flag = False  # e.g. touching a portal
         self.level_complete = False
 
-        # what type of level is it, this may be unnecessary, but could use this to set score_goal etc. to something
-        # un-obtainable
-        self.score_objective = False
-        self.time_objective = False
-        self.kill_objective = True
+    def update(self):
 
+        self.enemy_patterns()
+        self.level_transition()
+
+        if self.time_objective:
+            self.display_timer()
+        elif self.kill_objective:
+            self.display_kills()
+        else:
+            self.display_score()
     def level_transition(self):
         self.level_complete = True
         keys = pygame.key.get_pressed()
-        # later will create custom enemies per level, have that list .pop entries to enemies
-        # perhaps a list of lists with times? a dictionary with a list of enemies and seconds_elapsed for when to
-        # spawn them? or do it based on enemies destroyed alone? or both? based on len(enemies) only would save a lot of
-        # complex code imo
 
-        # then when that list len = 0 and len enemies = 0, level is complete
+        # later move this to its own function of check_win_conditions
+        if ((self.kill_objective and self.defeated_enemies == self.current_level_total_enemies) or self.other_level_finished_flag\
+                or (self.score_objective and self.current_score == self.score_goal) or
+                (self.time_objective and self.seconds_elapsed == self.time_goal)):
 
-        # let each new level update current_level total enemies
-
-
-        # current~total needs to be updated by each individual level
-        if self.defeated_enemies == self.current_level_total_enemies or self.other_level_finished_flag\
-                or self.current_score == self.score_goal:
             self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/transition_bg.png'), (screenwidth, screenheight))
             player.rect.x = screenwidth / 2 - player.sprite_width / 2
             player.rect.y = screenheight / 2 - player.sprite_height / 2
+            #GAME_ACTIVE = FALSE
         if self.level_complete:
             if keys[pygame.K_b]:
                 self.current_level += 1  # this increases every time we press b for now
@@ -93,8 +107,79 @@ class Level:
                 self.seconds_elapsed = 0
                 print('current level', self.current_level)
 
+
     def enemy_patterns(self):
-        pass
+        current_level_data = self.data.get(self.current_level, [])
+        for level_data in current_level_data:
+            for seconds, enemy_list in level_data.items():
+                if seconds <= level.seconds_elapsed:
+                    for bad_guy in enemy_list:
+                        if bad_guy:
+                            level.create_enemy(*bad_guy.popitem())
+
+    def create_enemy(self, name, quantity):
+        def generate_safe_position(potential_x, potential_y, min_distance_from_player):
+            if ((player.rect.x - min_distance_from_player) <= potential_x <= (
+                    player.rect.x + min_distance_from_player) or
+                    player.rect.y - min_distance_from_player <= potential_y < - player.rect.y + min_distance_from_player):
+                return None
+            return (potential_x, potential_y)
+
+        enemy_name = name.capitalize()
+
+        for i in range(quantity):
+            co_ords = None
+            while co_ords is None:
+                # could put these three into a dictionary to reduce code length and increase aesthetics, remove if statements
+                # later will probably move the spawning into their own classes anyway
+                if enemy_name == 'Twirler':
+                    co_ords = generate_safe_position(random.randint(0, screenwidth), random.randint(0, screenheight),
+                                                     200)
+                elif enemy_name == 'Bouncer' or enemy_name == 'Seeker':
+                    co_ords = generate_safe_position(random.randint(0, screenwidth),
+                                                     random.randint(0, screenheight),
+                                                     200)
+                elif enemy_name == 'Wedge':
+                    co_ords = generate_safe_position(random.randint(0, int(screenwidth)), -100, 0)
+            # creates an enemy of enemy_name class, e.g. Seeker(co_ords[0], co_ords[1])
+            enemy = globals()[enemy_name](co_ords[0], co_ords[1])
+            enemies.add(enemy)
+            level.spawned_enemies += 1
+            # spawn_sound = pygame.mixer.Sound(f'sound/{enemy_name}.wav')
+            # spawn_sound.play()
+
+
+    # These three are kept separate now, not because WET but because I may choose to make them more different
+    # perhaps different enough to justify being separate? e.g. a level with two win conditions?
+    def display_timer(self):
+        remaining_time = self.time_goal - self.seconds_elapsed
+        red, green = 0, 255
+
+        if 5 <= remaining_time <= 9:
+            red, green = 255, 165
+        if remaining_time <= 5:
+            red, green = 255, 0
+
+        time_text = score_font.render(str(remaining_time), True, (red, green, 0))
+        time_text_rect = time_text.get_rect()
+        time_text_rect.midtop = (screenwidth / 2, 10)
+        if remaining_time >= 0:
+            screen.blit(time_text, time_text_rect)
+
+    def display_score(self):
+        score_text = score_font.render(str(level.current_score), True, (0, 255, 0))
+        score_text_rect = score_text.get_rect()
+        score_text_rect.midtop = (screenwidth / 2, 10)
+        screen.blit(score_text, score_text_rect)
+
+    def display_kills(self):
+        remaining_enemies = self.current_level_total_enemies - self.defeated_enemies
+        kill_text = score_font.render(str(remaining_enemies), True, (255,255,255))
+        kill_text_rect = kill_text.get_rect()
+        kill_text_rect.midtop = (screenwidth / 2, 10)
+        if remaining_enemies > 0:
+            screen.blit(kill_text, kill_text_rect)
+
 
 # need to set better boundaries by including the size of the sprite in the calculation
 class Enemy(pygame.sprite.Sprite):
@@ -171,6 +256,7 @@ class Enemy(pygame.sprite.Sprite):
 class Seeker(Enemy):
     def __init__(self, x, y):
 
+        self.score_value = 50
         # preferences
         self.image_size_percent = 10
         self.flip_image = True
@@ -207,6 +293,7 @@ class Seeker(Enemy):
 class Bouncer(Enemy):
     def __init__(self, x, y):
 
+        self.score_value = 50
         #preferences
         self.flip_image = False
         self.undulate_image = True
@@ -248,6 +335,7 @@ class Bouncer(Enemy):
 class Twirler(Enemy):
     def __init__(self, x, y):
 
+        self.score_value = 25
         #preferences
         self.flip_image = False
         self.undulate_image = True
@@ -267,6 +355,8 @@ class Twirler(Enemy):
 
 class Wedge(Enemy):
     def __init__(self, x, y):
+
+        self.score_value = 100
         # preferences
         self.flip_image = False
         self.undulate_image = True
@@ -585,6 +675,7 @@ class Bullet(pygame.sprite.Sprite):
     def hit_detection(self):
         for enemy in enemies:
             if self.rect.colliderect(enemy.rect):
+                level.current_score += enemy.score_value
                 enemies.remove(enemy)
                 bullets.remove(self)
                 level.defeated_enemies += 1
@@ -598,42 +689,12 @@ bullets = pygame.sprite.Group()
 
 
 
-def create_enemy(name, quantity):
-    def generate_safe_position(potential_x, potential_y, min_distance_from_player):
-        if ((player.rect.x - min_distance_from_player) <= potential_x <= (player.rect.x + min_distance_from_player) or
-                player.rect.y - min_distance_from_player <= potential_y < - player.rect.y + min_distance_from_player):
-            return None
-        return (potential_x, potential_y)
-    enemy_name = name.capitalize()
-    for i in range(quantity):
-        co_ords = None
-        while co_ords is None:
-            # could put these three into a dictionary to reduce code length and increase aesthetics, remove if statements
-            # later will probably move the spawning into their own classes anyway
-            if enemy_name == 'Twirler':
-                co_ords = generate_safe_position(random.randint(0,screenwidth), random.randint(0, screenheight),
-                                             200)
-            elif enemy_name == 'Bouncer':
-                co_ords = generate_safe_position(random.randint(0, screenwidth),
-                                                 random.randint(0, screenheight),
-                                                 200)
-            elif enemy_name == 'Seeker':
-                co_ords = generate_safe_position(random.randint(0, int(screenwidth)),
-                                                 random.randint(0, int(screenheight)),
-                                                 200)
-            elif enemy_name == 'Wedge':
-                co_ords = generate_safe_position(random.randint(0, int(screenwidth)), -100, 0)
-        enemy = globals()[enemy_name](co_ords[0], co_ords[1])
-        enemies.add(enemy)
-        level.spawned_enemies += 1
-        # spawn_sound = pygame.mixer.Sound(f'sound/{enemy_name}.wav')
-        # spawn_sound.play()
 
 
-create_enemy('bouncer', 1)
-create_enemy('twirler', 1)
-create_enemy('seeker', 1)
-create_enemy('wedge', 1)
+# level.create_enemy('bouncer', 1)
+# level.create_enemy('twirler', 1)
+# level.create_enemy('seeker', 1)
+# level.create_enemy('wedge', 1)
 
 running = True
 
@@ -655,30 +716,13 @@ while running:
         shots.was_fired()
         shots.delete_bullet()
         shots.hit_detection()
+
     frame_tracker()
+    level.update()
 
-    if len(enemies) == 0:
-        print('level cleared')
-    if len(enemies) != 0:
-        if frame_counter != 0 and frame_counter % 59 == 0:
-            print('hi')
-            create_enemy('wedge', 1)
-    # if len(enemies) < 20 and level.spawned_enemies < 500:
-    #     if frame_counter == 17:
-    #         create_enemy('wedge', 1)
-    #         create_enemy('seeker', 1)
-    #     if frame_counter == 36:
-    #         create_enemy('wedge', 1)
-    #         create_enemy('bouncer', 1)
-    #     if frame_counter == 56:
-    #         create_enemy('wedge', 1)
-    #         create_enemy('twirler', 1)
 
-    level.level_transition()
 
-    # temporary
-    if not player.is_alive:
-        print('defeated enemies:', level.defeated_enemies)
+
     #################################
     ### this section just for FPS ###
     fps = clock.get_fps()
