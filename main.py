@@ -7,6 +7,7 @@ screenheight = 600
 screen = pygame.display.set_mode((screenwidth, screenheight))
 clock = pygame.time.Clock()
 frame_counter = 0
+total_frames = 0
 icon = pygame.image.load('graphics/misc/retroFutureTumblr.png')
 pygame.display.set_icon(icon)
 pygame.display.set_caption("Retro Future")
@@ -16,13 +17,17 @@ fps_font = pygame.font.SysFont("Consolas", 20)
 score_font_path = "fonts/AerologicaRegular-K7day.ttf"
 score_font = pygame.font.Font(score_font_path, 50)
 def frame_tracker():
-    global frame_counter
+    global frame_counter, total_frames
     if frame_counter >= 59:
         frame_counter = 0
-        level.seconds_elapsed += 1
+        # level.seconds_elapsed += 1
     else:
         frame_counter += 1
-    print(level.current_score)
+        total_frames += 1
+        level.seconds_elapsed = round(total_frames / 60, 2)
+
+
+    # print(round(total_frames/60,2))
     # print('current frame:', frame_counter)
 
 # more beautiful way to track frames without global variable, but less efficient
@@ -44,14 +49,13 @@ def frame_tracker():
 
 class Level:
     def __init__(self):
-        self.current_level = 1
+        self.current_level = 2
         # 900 x 600 is for the temporary image, otherwise later will be screenwidth, screenheight
         self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{self.current_level}.png'), (900, 600))
         self.data = spawn_data
 
 
-
-        self.score_objective = False
+        self.score_objective = True
         self.current_score = 0
         self.score_goal = 10000
 
@@ -59,17 +63,22 @@ class Level:
         self.seconds_elapsed = 0
         self.time_goal = 11
 
-        self.kill_objective = True
+        self.kill_objective = False
         self.current_level_total_enemies = (calculate_total_enemies(spawn_data)).get(self.current_level)
         self.spawned_enemies = 0  # this may now be obsolete
         self.defeated_enemies = 0
 
+        self.endless_mode = True
         self.other_level_finished_flag = False  # e.g. touching a portal
         self.level_complete = False
 
+        self.spawn_cooldown = 0
     def update(self):
+        if self.endless_mode:
+            self.endless_enemies()
+        else:
+            self.enemy_patterns()
 
-        self.enemy_patterns()
         self.level_transition()
 
         if self.time_objective:
@@ -120,8 +129,8 @@ class Level:
     def create_enemy(self, name, quantity):
         def generate_safe_position(potential_x, potential_y, min_distance_from_player):
             if ((player.rect.x - min_distance_from_player) <= potential_x <= (
-                    player.rect.x + min_distance_from_player) or
-                    player.rect.y - min_distance_from_player <= potential_y < - player.rect.y + min_distance_from_player):
+                    player.rect.x + min_distance_from_player) and
+                    player.rect.y - min_distance_from_player <= potential_y < player.rect.y + min_distance_from_player):
                 return None
             return (potential_x, potential_y)
 
@@ -142,17 +151,48 @@ class Level:
                 elif enemy_name == 'Wedge':
                     co_ords = generate_safe_position(random.randint(0, int(screenwidth)), -100, 0)
             # creates an enemy of enemy_name class, e.g. Seeker(co_ords[0], co_ords[1])
+
             enemy = globals()[enemy_name](co_ords[0], co_ords[1])
             enemies.add(enemy)
             level.spawned_enemies += 1
             # spawn_sound = pygame.mixer.Sound(f'sound/{enemy_name}.wav')
             # spawn_sound.play()
 
+    def endless_enemies(self):
+
+        # number of enemies ramps up from 2, maxes at 50
+        max_enemies = min(math.ceil(((self.current_score+100)/250))+1,40)
+        if max_enemies > 10:
+            player.concurrent_bullets = 3
+            player.cooldown_rate = 8
+        if max_enemies > 25:
+            player.cooldown_rate = 2
+
+        if self.defeated_enemies != 0 and self.defeated_enemies % (max_enemies*4) == 0:
+            self.spawn_cooldown = random.randint(6,20)
+        if self.spawn_cooldown > 0:
+            if frame_counter % 59 == 0:
+                self.spawn_cooldown -= 1
+
+        if self.spawn_cooldown == 0:
+            if len(enemies) < max_enemies:
+                if frame_counter % 6 == 0:
+                    choice_weights = [0.4, 0.4, 0.2, 0.1]
+                    enemy_choice = random.choices(['Seeker', 'Bouncer','Wedge','Twirler'], weights=choice_weights, k=1).pop()
+                    if enemy_choice == 'Seeker' or 'Bouncer':
+                        min_max = (1,3)
+                    elif enemy_choice == 'Twirler':
+                        min_max = (1,1)
+                    elif enemy_choice == 'Wedge:':
+                        min_max = (6,12)
+                    level.create_enemy(enemy_choice, random.randint(*min_max))
+
+
 
     # These three are kept separate now, not because WET but because I may choose to make them more different
     # perhaps different enough to justify being separate? e.g. a level with two win conditions?
     def display_timer(self):
-        remaining_time = self.time_goal - self.seconds_elapsed
+        remaining_time = self.time_goal - math.ceil(self.seconds_elapsed)
         red, green = 0, 255
 
         if 5 <= remaining_time <= 9:
@@ -388,6 +428,32 @@ class Wedge(Enemy):
         if self.rect.y >= screenheight + self.sprite_height:
             enemies.remove(self)
             level.defeated_enemies += 1
+
+class Slinky(Enemy):
+    def __init__(self, x, y):
+
+        self.score_value = 200
+        # preferences
+        self.image_size_percent = 10
+        self.flip_image = False
+        self.undulate_image = False
+        self.speed = 1
+        # to rotate/undulate enemies
+        self.rotation_counter = 0
+        self.rotation_degrees = 15
+        self.rotation_speed = 1
+        self.wiggle_quantity = 3
+        super().__init__(x, y)
+
+    def movement_method(self):
+        pass
+
+    # Slinky will be an elongated shape that stretches horizontally as it goes across the screen, it moves slowly
+    # (and takes extra shots to kill?) horizontally, spawning in in-line with the player's y co-ordinate
+
+    # some special stage can combine Slinky with Wedge for a dodge-themed challenge like GW: Waves.
+
+
 class Player(pygame.sprite.Sprite):
 
     # the inheriting from sprite.Sprite is currently unused, super can be commented, but makes pycharm underline it
