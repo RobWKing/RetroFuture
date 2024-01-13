@@ -1,3 +1,4 @@
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
 
 currently undulate() function is working, but the makeshift drawing of enemy sprites:
 
@@ -7,18 +8,143 @@ currently undulate() function is working, but the makeshift drawing of enemy spr
 
 makes it slowly draw itself into nothingspace, in a way that it gets cut off, which is a little strange.
 
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
 
 next: make the seeker move towards the player's location, direct straight line for now.
 
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
 2: make seeker rotate only horizontally to face direction of player
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
 
 5: Enemy undulate() cannot account for 360 degree spins, will always rotate back when reaching the limit
 
-
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
 
 0: I need to change all moving of images to moving of rects for collision to work _._
 - wasn't too bad, only had to change player's rect. remember to update rects and draw images...
 
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
 
 1: create hitboxes to detect enemy hitting player
 
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+2: create class for ball object, rotates 360 and bounces around the screen slowly
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+4: find a way to make this         self.image = pygame.image.load('graphics/enemies/seeker/1.png')
+    into a part of the Enemy class using something like:
+                            folder_path = f'graphics/enemies/{type(enemy).__name__.lower()}'
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+8: make it so enemies cannot spawn within a certain radius of the player's location
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+0: for when colliderect = True, can probably do something using self. to remove self from the group, if the group
+    is a regular list/tuple, maybe can .remove()?
+/\ this is for when bullets work, not for now
+
+    !!!  enemies.remove(self)  as easy as that?! wow
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+the current way animations are set is that they begin at every 1 second or 0.5 second interval
+if a new seeker spawns at these intervals, it won't have any spawn-in animation at all
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+3: prettify code, find way to hide excess global variables
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+
+5: in player class add self.is_boosting, add to animate() to load different sprites when boosting
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+
+9: Twirler's current code can make it twirl out of the map, add limits later
+
+did with alternation + self.wiggle_up = not self.wiggle_up very useful to toggle true/false
+
+then I made the code much better:
+    def movement_method(self):
+        if frame_counter % 6 == 0:
+            self.rect.move_ip((self.wiggle_quantity,)*2)
+            self.wiggle_quantity *= -1
+
+note this (variable,)*2 creates a tuple (variable, variable)
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+16: for player: remove self.x_position and replace all with self.rect
+
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+
+17: remove arrow keys at some point since they are broken OR find fix for left+up problem
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+19: player's hitbox rec works, but the playerImg is attached to the topleft of the hitbox rec, so it's lenient on the right
+    and harsh on the left
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+
+10: wedge enemy who flies across screen like asteroid storm
+
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+
+13: can say len(enemies) == 0 to determine level is finished
+
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+14: # later edit self.rect to take from a smaller image to reduce frustration in hitbox detection
+      do the same for enemies, create decent overlap before death
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+
+urgent: spawn will only spawn if X and Y more than 200 units away, should be or not and
+
+ if ((player.rect.x - min_distance_from_player) <= potential_x <= (
+                    player.rect.x + min_distance_from_player) and
+                    player.rect.y - min_distance_from_player <= potential_y < - player.rect.y + min_distance_from_player):
+
+had a stupid error "potential_y < - player.rect.y + min_distance_from_player" don't know where that - came from
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+5: give all enemies self.score values, so can have a level about reaching a certain score
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+in one mode (survive 60 seconds, first 10 seconds nothing happens, long cooldown,
+    microsoft sam - its time to fight to survive, then
+    sick - super lively ------ a-hero-of-the-80s-126684.mp3 (need convert)
+    kick in this song, then spawn tonnes of enemies
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+
+1: create new class: Splash Screen, which loads the menu
+
+2: create new class Menu which loads the menus and launches the levels, player, enemies etc
+    menu has: gauntlet (all modes in sequence), level select and highscores
+    there are set boxes on screen defined in the init or a first function, that change the text, size,
+    location of the buttons etc. Each button can either be clicked with the mouse or shot with the player
+
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-
+~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-

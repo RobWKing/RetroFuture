@@ -1,9 +1,10 @@
 import pygame, random, math, os
 from spawns import spawn_data, calculate_total_enemies
+
 pygame.init()
 
-screenwidth = 800
-screenheight = 600
+screenwidth = 1200
+screenheight = 700
 screen = pygame.display.set_mode((screenwidth, screenheight))
 clock = pygame.time.Clock()
 frame_counter = 0
@@ -16,6 +17,11 @@ pygame.display.set_caption("Retro Future")
 fps_font = pygame.font.SysFont("Consolas", 20)
 score_font_path = "fonts/AerologicaRegular-K7day.ttf"
 score_font = pygame.font.Font(score_font_path, 50)
+splash_font_path = "fonts/PressStart2P-vaV7.ttf"
+splash_font = pygame.font.Font(splash_font_path, 50)
+splash_font_small = pygame.font.Font(splash_font_path, 20)
+splash_font_x_small = pygame.font.Font(splash_font_path, 10)
+
 def frame_tracker():
     global frame_counter, total_frames
     if frame_counter >= 59:
@@ -46,59 +52,345 @@ def frame_tracker():
 #     return count_frames
 # tracker = frame_tracker()
 
+class God:
+    def __init__(self):
+        self.current_mode = 'MenuSystem'
+
+    def god_run(self):
+        if self.current_mode == 'MenuSystem':
+            menu.run()
+        elif self.current_mode == 'game':
+            pass
+
+class MenuSystem:
+    def __init__(self):
+        self.current_screen = 'splash_screen'
+        self.BgImg = None  # this is set in the run() function based on what self.current_screen is
+        self.run_game = False
+
+        self.splash_text_start_y = -10
+
+    def splash_screen(self):
+        keys = pygame.key.get_pressed()
+
+        # draw the title screen text
+        splash_text = 'Welcome to RetroFuture!'
+        splash_screen_text = splash_font.render(splash_text, True, (0, 255, 0))
+        splash_screen_text_rect = splash_screen_text.get_rect()
+        splash_screen_text_rect.midtop = (screenwidth / 2, self.splash_text_start_y)
+
+        screen.blit(splash_screen_text, splash_screen_text_rect)
+
+        if self.splash_text_start_y < screenheight/3:
+            self.splash_text_start_y += 3
+
+        if self.splash_text_start_y >= screenheight/3:
+            splash_under_text = 'Press \'Enter\' to continue'
+            splash_under_text = splash_font_small.render(splash_under_text, True, (0,255,0))
+            splash_under_text_rect = splash_under_text.get_rect()
+            splash_under_text_rect.midtop = (screenwidth/2, screenheight/2)
+
+            screen.blit(splash_under_text, splash_under_text_rect)
+
+        print('currently on splash screen')
+
+
+        # score_text = score_font.render(str(level.current_score), True, (0, 255, 0))
+        # score_text_rect = score_text.get_rect()
+        # score_text_rect.midtop = (screenwidth / 2, 10)
+        # screen.blit(score_text, score_text_rect)
+
+
+        if keys[pygame.K_RETURN]:
+            self.current_screen = 'main_menu'
+            print('key pressed in splash screen')
+
+    # def main_menu(self):
+    #     pass
+    #     # keys = pygame.key.get_pressed()
+    #
+    #     # i = 2
+    #     # menu_items = ('Gauntlet',
+    #     #               'Endless',
+    #     #               'High Scores')
+    #     # for menu_item in menu_items:
+    #     #     text = splash_font_small.render(menu_item, True, (0,255,0))
+    #     #     rect = text.get_rect()
+    #     #     rect.center = (screenwidth/2, int(screenheight/i))
+    #     #     print(i)
+    #     #     i += 0.25
+    #     #     screen.blit(text, rect)
+    #
+    #
+    #     # could potentially make a sub-class for this, but really doesn't seem worth it?
+    #     # could also maybe be a standalone function? not finished writing it yet, idk
+    #     # menu_item_1 = 'Gauntlet'
+    #     # menu_item_1 = splash_font_small.render(menu_item_1, True, (0, 255, 0))
+    #     # menu_item_1_rect = menu_item_1.get_rect()
+    #     # menu_item_1_rect.midtop = (screenwidth/2, 550)
+    #     #
+    #     # menu_item_2 = 'Endless'
+    #     # menu_item_2 = splash_font_small.render(menu_item_2, True, (0, 255, 0))
+    #     # menu_item_2_rect = menu_item_2.get_rect()
+    #     # menu_item_2_rect.midtop = (screenwidth / 2, 350)
+    #     #
+    #     # menu_item_3 = 'High Score'
+    #     # menu_item_3 = splash_font_small.render(menu_item_3, True, (0, 255, 0))
+    #     # menu_item_3_rect = menu_item_3.get_rect()
+    #     # menu_item_3_rect.midtop = (screenwidth / 2, 150)
+    #     #
+    #     # menu_rects = [menu_item_1_rect,menu_item_2_rect,menu_item_3_rect]
+    #     #
+    #     # screen.blit(menu_item_1, menu_item_1_rect)
+    #     # screen.blit(menu_item_2, menu_item_2_rect)
+    #     # screen.blit(menu_item_3, menu_item_3_rect)
+    #
+    #
+    #     # later change to mouse colliderect + maybe player shooting the menu options
+    #     # if keys[pygame.K_SPACE]:
+    #     #     self.run_game = True
+    #     #     print('key pressed in main menu')
+    #     #     god.current_mode = 'game'
+
+    def main_menu(self):
+        # print('this is running')
+
+        # these will probably have to be their own class to make the code smoother, so i can loop through and access
+        # the objects name and other properties, make Sprite groups etc
+
+        menu_item_1_name = 'Gauntlet'
+        menu_item_1 = splash_font_small.render(menu_item_1_name, True, (0, 255, 0))
+        menu_item_1_rect = menu_item_1.get_rect()
+        menu_item_1_rect.midtop = (screenwidth / 2, 550)
+
+        menu_item_2_name = 'Endless'
+        menu_item_2 = splash_font_small.render(menu_item_2_name, True, (0, 255, 0))
+        menu_item_2_rect = menu_item_2.get_rect()
+        menu_item_2_rect.midtop = (screenwidth / 2, 350)
+
+        menu_item_3_name = 'Survive'
+        menu_item_3 = splash_font_small.render(menu_item_3_name, True, (0, 255, 0))
+        menu_item_3_rect = menu_item_3.get_rect()
+        menu_item_3_rect.midtop = (screenwidth / 2, 150)
+
+        screen.blit(menu_item_1, menu_item_1_rect)
+        screen.blit(menu_item_2, menu_item_2_rect)
+        screen.blit(menu_item_3, menu_item_3_rect)
+
+        if pygame.mouse.get_pressed()[0]:
+            mouse_pos = pygame.mouse.get_pos()
+            if menu_item_1_rect.collidepoint(mouse_pos):
+                print(menu_item_1_name)  # Gauntlet
+                print('directory not yet created')
+
+            elif menu_item_2_rect.collidepoint(mouse_pos):
+                print(menu_item_2_name)  # Endless
+                level.current_level = 12
+                level.game_mode = 'Endless'
+                level.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{level.current_level}.png'),
+                                                     (screenwidth, screenheight))
+                self.run_game = True
+                god.current_mode = 'game'
+
+            elif menu_item_3_rect.collidepoint(mouse_pos):
+                print(menu_item_3_name)  # Survive
+                level.current_level = 11
+                level.game_mode = 'Survive'
+                level.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{level.current_level}.png'),
+                                                     (screenwidth, screenheight))
+                self.current_screen = 'choose_difficulty_screen'
+
+
+    def choose_difficulty_screen(self):
+
+        menu_item_1_name = 'Regular'
+        menu_item_1 = splash_font_small.render(menu_item_1_name, True, (0, 255, 0))
+        menu_item_1_rect = menu_item_1.get_rect()
+        menu_item_1_rect.midtop = (300, screenheight/2-50)
+
+        menu_item_2_name = 'Full Send'
+        menu_item_2 = splash_font_small.render(menu_item_2_name, True, (0, 255, 0))
+        menu_item_2_rect = menu_item_2.get_rect()
+        menu_item_2_rect.midtop = (900, screenheight/2-50)
+
+        menu_item_3_name = 'We Enjoy Dying'
+        menu_item_3 = splash_font_x_small.render(menu_item_3_name, True, (0, 255, 0))
+        menu_item_3_rect = menu_item_2.get_rect()
+        menu_item_3_rect.topleft = (10, 10)
+
+        screen.blit(menu_item_1, menu_item_1_rect)
+        screen.blit(menu_item_2, menu_item_2_rect)
+        screen.blit(menu_item_3, menu_item_3_rect)
+
+
+
+        if pygame.mouse.get_pressed()[0]:
+            mouse_pos = pygame.mouse.get_pos()
+            if menu_item_1_rect.collidepoint(mouse_pos):
+                print(menu_item_1_name)
+                level.max_enemies = 20
+                self.run_game = True
+                god.current_mode = 'game'
+
+            elif menu_item_2_rect.collidepoint(mouse_pos):
+                print(menu_item_2_name)
+                level.max_enemies = 50
+                self.run_game = True
+                god.current_mode = 'game'
+
+            elif menu_item_3_rect.collidepoint(mouse_pos):
+                print(menu_item_3_name)
+                level.max_enemies = 200
+                self.run_game = True
+                god.current_mode = 'game'
+
+    def show_highscore(self):
+
+        file_path = "scores.lp"
+
+        with open(file_path, "r") as file:
+            current_highscore = int(file.read())
+            # current_highscore = int(current_highscore)
+
+        if level.current_score > current_highscore:
+            current_highscore = level.current_score
+
+            with open(file_path, "w") as file:  # Use "a" for append mode instead of "w" to append data to an existing file
+                file.write(str(current_highscore))
+
+
+        string1 = 'Record Highscore: ' + str(current_highscore)
+        menu_item_1_name = string1
+        menu_item_1 = splash_font_small.render(menu_item_1_name, True, (0, 255, 0))
+        menu_item_1_rect = menu_item_1.get_rect()
+        menu_item_1_rect.midtop = (screenwidth / 2, 550)
+
+        string2 = 'Your score: ' + str(level.current_score)
+        menu_item_2_name = string2
+        menu_item_2 = splash_font_small.render(menu_item_2_name, True, (0, 255, 0))
+        menu_item_2_rect = menu_item_2.get_rect()
+        menu_item_2_rect.midtop = (screenwidth / 2, 350)
+
+        menu_item_3_name = 'Press Enter to return to main menu'
+        menu_item_3 = splash_font_small.render(menu_item_3_name, True, (0, 255, 0))
+        menu_item_3_rect = menu_item_3.get_rect()
+        menu_item_3_rect.midtop = (screenwidth / 2, 150)
+
+        screen.blit(menu_item_1, menu_item_1_rect)
+        screen.blit(menu_item_2, menu_item_2_rect)
+        screen.blit(menu_item_3, menu_item_3_rect)
+
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_RETURN]:
+            level.current_score = 0
+            self.current_screen = 'main_menu'
+            print('key pressed in show_highscore')
+
+
+    def run(self):
+        self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{self.current_screen}.png'),
+                                            (screenwidth, screenheight))
+        screen.blit(self.BgImg, (0, 0))
+        if self.current_screen == 'splash_screen':
+            self.splash_screen()
+        elif self.current_screen == 'main_menu':
+            self.main_menu()
+        elif self.current_screen == 'choose_difficulty_screen':
+            self.choose_difficulty_screen()
+        elif self.current_screen == 'show_highscore':
+            self.show_highscore()
+
 
 class Level:
     def __init__(self):
         self.current_level = 2
         # 900 x 600 is for the temporary image, otherwise later will be screenwidth, screenheight
-        self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{self.current_level}.png'), (900, 600))
-        self.data = spawn_data
+        self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{self.current_level}.png'), (screenwidth, screenheight))
+        self.data = dict(spawn_data)
 
 
-        self.score_objective = True
+        self.score_objective = False
         self.current_score = 0
         self.score_goal = 10000
 
-        self.time_objective = False
+        self.time_objective = True
         self.seconds_elapsed = 0
-        self.time_goal = 11
+        self.time_goal = 60
 
         self.kill_objective = False
         self.current_level_total_enemies = (calculate_total_enemies(spawn_data)).get(self.current_level)
         self.spawned_enemies = 0  # this may now be obsolete
         self.defeated_enemies = 0
 
-        self.endless_mode = True
+        self.endless_mode = False
+        self.max_enemies = 5
         self.other_level_finished_flag = False  # e.g. touching a portal
         self.level_complete = False
 
         self.spawn_cooldown = 0
+        self.announcement_played = False
+        self.music_playing = False
+
+        self.game_mode = 'Gauntlet'
+
+        # TEMPORARY
+        self.music = False
+        self.bg_track = pygame.mixer.Sound(f'sound/music/a_hero_of_the_80s.ogg')
+        self.temporaryself_bg_ogg = pygame.mixer.Sound('sound/music/a_hero_of_the_80s.ogg')
+
+
+    def set_mode(self):
+        if self.current_level == 11:
+            self.game_mode = 'Survive'
+        elif self.current_level == 12:
+            self.game_mode = 'Endless'
+
     def update(self):
-        if self.endless_mode:
+        # self.set_mode()
+
+
+        if self.game_mode == 'Endless':
             self.endless_enemies()
-        else:
-            self.enemy_patterns()
+            self.display_score()
+
+
+
+        elif self.game_mode == 'Survive':
+                self.survival_mode_enemies()
+                self.display_timer()
 
         self.level_transition()
 
-        if self.time_objective:
-            self.display_timer()
-        elif self.kill_objective:
-            self.display_kills()
-        else:
-            self.display_score()
+        # if self.time_objective:
+        #     self.display_timer()
+        #     self.survival_mode_enemies()
+        # elif self.kill_objective:
+        #     self.display_kills()
+        # else:
+        #     self.display_score()
     def level_transition(self):
-        self.level_complete = True
+        # self.level_complete = True
         keys = pygame.key.get_pressed()
 
         # later move this to its own function of check_win_conditions
-        if ((self.kill_objective and self.defeated_enemies == self.current_level_total_enemies) or self.other_level_finished_flag\
-                or (self.score_objective and self.current_score == self.score_goal) or
-                (self.time_objective and self.seconds_elapsed == self.time_goal)):
-
-            self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/transition_bg.png'), (screenwidth, screenheight))
+        # if ((self.kill_objective and self.defeated_enemies == self.current_level_total_enemies) or self.other_level_finished_flag\
+        #         or (self.score_objective and self.current_score == self.score_goal) or
+        #         (self.time_objective and self.seconds_elapsed == self.time_goal)):
+        if ((self.game_mode == 'Survive' and self.time_goal == self.seconds_elapsed)
+                or (self.game_mode == 'Endless' and player.is_alive is False)):
+            self.level_complete = True
+            # self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/transition_bg.png'), (screenwidth, screenheight))
             player.rect.x = screenwidth / 2 - player.sprite_width / 2
             player.rect.y = screenheight / 2 - player.sprite_height / 2
+            self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/yay.png'), (screenwidth, screenheight))
+            self.temporaryself_bg_ogg.stop()
+            mission_complete = pygame.mixer.Sound('sound/announcer/mission_completed.wav')
+            mission_complete.play()
+
+            self.endless_mode = False
+            # may only work for endless mode?
+            for enemy in enemies:
+                enemies.remove(enemy)
             #GAME_ACTIVE = FALSE
         if self.level_complete:
             if keys[pygame.K_b]:
@@ -117,15 +409,34 @@ class Level:
                 print('current level', self.current_level)
 
 
-    def enemy_patterns(self):
-        current_level_data = self.data.get(self.current_level, [])
-        for level_data in current_level_data:
-            for seconds, enemy_list in level_data.items():
-                if seconds <= level.seconds_elapsed:
-                    for bad_guy in enemy_list:
-                        if bad_guy:
-                            level.create_enemy(*bad_guy.popitem())
 
+    def enemy_patterns(self):
+
+        # has become more verbose and can probably be re-shortened, but it works properly now
+        for level, level_data in self.data.items():
+            if level == self.current_level:
+                for data in level_data:
+                    for seconds, enemy_list in data.items():
+                        if seconds == self.seconds_elapsed:
+                            for bad_guy in enemy_list:
+                                if bad_guy:
+                                    for name, quantity in bad_guy.items():
+
+                                        # print('name', name, type(name))
+                                        # print('quantity', quantity, type(quantity))
+                                        self.create_enemy(name, quantity)
+                                        print(bad_guy)
+                                    # self.create_enemy(bad_guy[0], bad_guy[1])
+                                # print(seconds)
+                                # print('bad guy', bad_guy)
+                                # if bad_guy:
+                                #     self.create_enemy(*bad_guy.popitem())
+                        # print(seconds)
+                    # for seconds, enemy_list in data.items():
+                    #     if seconds <= level.seconds_elapsed:
+                    #         for bad_guy in enemy_list:
+                    #             if bad_guy:
+                    #                 level.create_enemy(*bad_guy.popitem())
     def create_enemy(self, name, quantity):
         def generate_safe_position(potential_x, potential_y, min_distance_from_player):
             if ((player.rect.x - min_distance_from_player) <= potential_x <= (
@@ -150,52 +461,102 @@ class Level:
                                                      200)
                 elif enemy_name == 'Wedge':
                     co_ords = generate_safe_position(random.randint(0, int(screenwidth)), -100, 0)
-            # creates an enemy of enemy_name class, e.g. Seeker(co_ords[0], co_ords[1])
+                elif enemy_name == 'Palm':
+                    left_or_right_choice = random.choice([-100,screenwidth+100])
+                    co_ords = generate_safe_position(left_or_right_choice, random.randint(0, screenheight), 0)
 
+            # creates an enemy of enemy_name class, e.g. Seeker(co_ords[0], co_ords[1])
             enemy = globals()[enemy_name](co_ords[0], co_ords[1])
             enemies.add(enemy)
+
             level.spawned_enemies += 1
             # spawn_sound = pygame.mixer.Sound(f'sound/{enemy_name}.wav')
             # spawn_sound.play()
 
     def endless_enemies(self):
 
-        # number of enemies ramps up from 2, maxes at 50
-        max_enemies = min(math.ceil(((self.current_score+100)/250))+1,40)
-        if max_enemies > 10:
-            player.concurrent_bullets = 3
-            player.cooldown_rate = 8
-        if max_enemies > 25:
-            player.cooldown_rate = 2
+        if self.game_mode == 'Endless':
+            if self.seconds_elapsed > 0.2:
+                if self.music_playing is False:
+                    self.temporaryself_bg_ogg = pygame.mixer.Sound('sound/music/stranger-things.ogg')
+                    self.temporaryself_bg_ogg.play()
+                    self.music_playing = True
+            # number of enemies ramps up from 2, maxes at 50, this is temporary code for easy adjusting
+            self.max_enemies = min(math.ceil(((self.current_score+100)/250))+5,250)
 
-        if self.defeated_enemies != 0 and self.defeated_enemies % (max_enemies*4) == 0:
-            self.spawn_cooldown = random.randint(6,20)
+        if self.max_enemies < 20:
+            player.concurrent_bullets = 1
+            player.cooldown_rate = 8
+        if self.max_enemies >= 20:
+            player.concurrent_bullets = 3
+            player.cooldown_rate = 2
+        if self.max_enemies > 100:
+            player.concurrent_bullets = 3
+            player.cooldown_rate = 1
+
+        # if max_enemies = 50, once every 200 enemies, cause a delay of 6-20 seconds (to clear screen)
+        if self.defeated_enemies != 0 and self.defeated_enemies % (self.max_enemies*4) == 0:
+            self.spawn_cooldown = random.randint(6,10)
+
+        # if no enemies at all, start spawning new enemies
+        if self.spawned_enemies == 0:
+            self.spawn_cooldown = 0
         if self.spawn_cooldown > 0:
             if frame_counter % 59 == 0:
                 self.spawn_cooldown -= 1
 
         if self.spawn_cooldown == 0:
-            if len(enemies) < max_enemies:
+            if len(enemies) < self.max_enemies:
                 if frame_counter % 6 == 0:
-                    choice_weights = [0.4, 0.4, 0.2, 0.1]
-                    enemy_choice = random.choices(['Seeker', 'Bouncer','Wedge','Twirler'], weights=choice_weights, k=1).pop()
+                    choice_weights = [0.4, 0.4, 0.2, 0.2, 0.2]
+                    enemy_choice = random.choices(['Seeker', 'Bouncer','Wedge', 'Palm', 'Twirler'], weights=choice_weights, k=1).pop()
                     if enemy_choice == 'Seeker' or 'Bouncer':
                         min_max = (1,3)
                     elif enemy_choice == 'Twirler':
-                        min_max = (1,1)
-                    elif enemy_choice == 'Wedge:':
-                        min_max = (6,12)
+                        min_max = (10,11)
+                    elif enemy_choice == 'Wedge':
+                        min_max = (12,20)
+                    elif enemy_choice == 'Palm':
+                        min_max = (3,10)
                     level.create_enemy(enemy_choice, random.randint(*min_max))
+
+    def survival_mode_enemies(self):
+        # survival mode is level 4
+
+        self.enemy_patterns()
+
+        # if want this to be more graceful have to switch to using mixer.music with init() to measure length of tracks,
+        # would probably make sense if ultimately create a music class
+        if self.seconds_elapsed > 18:
+            if self.announcement_played is False:
+                announcement = pygame.mixer.Sound('sound/announcer/do_you_have_the_will.wav')
+                announcement.play()
+                self.announcement_played = True
+
+            if self.seconds_elapsed > 24.5:
+                if not self.music_playing:
+                    self.temporaryself_bg_ogg = pygame.mixer.Sound('sound/music/a_hero_of_the_80s.ogg')
+                    # bg_ogg = pygame.mixer.Sound('sound/music/a_hero_of_the_80s.ogg') turn back on when properly handled
+                    # kill_player
+                    self.temporaryself_bg_ogg.play()
+                    # self.endless_mode = True
+                    self.music_playing = True
+                if not self.level_complete:
+                    self.endless_enemies()
+
+
+
+
 
 
 
     # These three are kept separate now, not because WET but because I may choose to make them more different
     # perhaps different enough to justify being separate? e.g. a level with two win conditions?
     def display_timer(self):
-        remaining_time = self.time_goal - math.ceil(self.seconds_elapsed)
+        remaining_time = self.time_goal - math.floor(self.seconds_elapsed)
         red, green = 0, 255
 
-        if 5 <= remaining_time <= 9:
+        if 5 < remaining_time <= 9:
             red, green = 255, 165
         if remaining_time <= 5:
             red, green = 255, 0
@@ -203,7 +564,7 @@ class Level:
         time_text = score_font.render(str(remaining_time), True, (red, green, 0))
         time_text_rect = time_text.get_rect()
         time_text_rect.midtop = (screenwidth / 2, 10)
-        if remaining_time >= 0:
+        if remaining_time > 0:
             screen.blit(time_text, time_text_rect)
 
     def display_score(self):
@@ -288,7 +649,7 @@ class Enemy(pygame.sprite.Sprite):
             print('boom!')
             enemies.remove(self)
             player.kill_player()
-
+            # level.bg_track.fadeout(500)  # example code
     def update_on_screen_position(self):
         screen.blit(self.image, self.rect)
 
@@ -298,7 +659,7 @@ class Seeker(Enemy):
 
         self.score_value = 50
         # preferences
-        self.image_size_percent = 10
+        self.image_size_percent = 4
         self.flip_image = True
         self.undulate_image = True
         self.speed = 1
@@ -342,7 +703,7 @@ class Bouncer(Enemy):
         self.rotation_counter = 0
         self.rotation_degrees = 360
         self.rotation_speed = 2
-        self.image_size_percent = 8
+        self.image_size_percent = 4
         super().__init__(x, y)  # the location of the super() does matter! being here allows the parent class to edit
         # the self.image before it gets set to original_image (now moved)
         self.target_coords = (random.randint(self.sprite_width, screenwidth-self.sprite_width),
@@ -383,7 +744,7 @@ class Twirler(Enemy):
         self.rotation_counter = 0
         self.rotation_degrees = 180
         self.rotation_speed = 4
-        self.image_size_percent = 14
+        self.image_size_percent = 7
         self.wiggle_quantity = 3
         super().__init__(x, y)  # the location of the super() does matter! being here allows the parent class to edit
         # the self.image before it gets set to original_image (now moved)
@@ -405,7 +766,7 @@ class Wedge(Enemy):
         self.rotation_counter = 0
         self.rotation_degrees = 360
         self.rotation_speed = random.choice([1,2,3])
-        self.image_size_percent = 6
+        self.image_size_percent = 3
         self.wiggle_quantity = 3
         super().__init__(x, y)
         self.target_coords = (random.randint(self.sprite_width, screenwidth-self.sprite_width),
@@ -416,8 +777,6 @@ class Wedge(Enemy):
 
 
     def movement_method(self):
-        result_x = self.target_coords[0] - (self.rect.topleft[0] + self.sprite_width / 4)
-        result_y = self.target_coords[1] - (self.rect.topleft[1] + self.sprite_width / 4)
 
         reduce_difference_x = -int(self.speed/self.fall_angle)
         reduce_difference_y = self.speed
@@ -429,30 +788,40 @@ class Wedge(Enemy):
             enemies.remove(self)
             level.defeated_enemies += 1
 
-class Slinky(Enemy):
+class Palm(Enemy):
     def __init__(self, x, y):
 
         self.score_value = 200
         # preferences
-        self.image_size_percent = 10
+        self.image_size_percent = 5
         self.flip_image = False
-        self.undulate_image = False
-        self.speed = 1
+        self.undulate_image = True
+        self.speed = 2
         # to rotate/undulate enemies
         self.rotation_counter = 0
         self.rotation_degrees = 15
         self.rotation_speed = 1
         self.wiggle_quantity = 3
+        self.fall_angle = random.choice([1, -1]) * random.choice([1, 2, 4, 8, 100])
+        self.come_from_left = False
+        self.starting_x_coord = x
         super().__init__(x, y)
 
     def movement_method(self):
-        pass
+        # speed_modifier is to change direction of Palms x movement based on which side of the screen they spawn on
+        # starting_x_coord compares to where the player is, if it's to the left of the player, speed_modifier will
+        # be positive (moves Palm right), if x_coord to the right of player, will be negative (move Palm left)
+        speed_modifier = self.speed * ((self.starting_x_coord < player.rect.x) * 2 - 1)
 
-    # Slinky will be an elongated shape that stretches horizontally as it goes across the screen, it moves slowly
-    # (and takes extra shots to kill?) horizontally, spawning in in-line with the player's y co-ordinate
+        reduce_difference_x = speed_modifier
+        reduce_difference_y = -int(speed_modifier / self.fall_angle)
 
-    # some special stage can combine Slinky with Wedge for a dodge-themed challenge like GW: Waves.
+        self.rect.move_ip(reduce_difference_x, reduce_difference_y)
 
+        # kill once off-screen
+        if 0 - self.sprite_width > self.rect.x >= screenwidth + self.sprite_width:
+            enemies.remove(self)
+            level.defeated_enemies += 1
 
 class Player(pygame.sprite.Sprite):
 
@@ -613,13 +982,14 @@ class Player(pygame.sprite.Sprite):
 
     def user_input_and_change_xy_pos(self):
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_d] and self.rect.x < (screenwidth - self.sprite_width):
+        if keys[pygame.K_d] and self.rect.centerx < (screenwidth - self.sprite_width):
             self.rect.x += self.speed
-        if keys[pygame.K_a] and self.rect.x > 0:
+
+        if keys[pygame.K_a] and self.rect.centerx > 0 + self.sprite_height:
             self.rect.x -= self.speed
-        if keys[pygame.K_w] and self.rect.y > 0:
+        if keys[pygame.K_w] and self.rect.centery > 0 + self.sprite_width:
             self.rect.y -= self.speed
-        if keys[pygame.K_s] and self.rect.y < (screenheight - self.sprite_height):
+        if keys[pygame.K_s] and self.rect.centery < (screenheight - self.sprite_height):
             self.rect.y += self.speed
 
 
@@ -656,21 +1026,85 @@ class Player(pygame.sprite.Sprite):
     def kill_player(self):
         player.is_alive = False
         player.animation_counter = 0
+        death_sound = pygame.mixer.Sound(f'sound/boom.wav')
+        death_sound.play()
+
+        # all of this is temporary!, but is a guide to what has to be toggled to restore default state at current time
+        for enemy in enemies:
+            enemies.remove(enemy)
+        self.concurrent_bullets = 1
+        self.cooldown_rate = 8
+        level.max_enemies = 5
+        self.rotation_angle = 0
+        for bullet in bullets:
+            bullets.remove(bullet)
+        player.is_alive = True
+        level.current_level_total_enemies = 0
+        level.defeated_enemies = 0
+        level.spawned_enemies = 0
+        level.seconds_elapsed = 0
+        level.announcement_played = False
+        level.endless_mode = False
+        level.music_playing = False
+        level.data = dict(spawn_data)
+        global frame_counter, total_frames
+        frame_counter = 0
+        total_frames = 0
+        player.rect.centerx = screenwidth / 2
+        player.rect.centery = screenheight / 2
+        level.temporaryself_bg_ogg.fadeout(1000)
+        level.level_complete = False
+        if not level.game_mode == "Endless":
+            level.current_score = 0
+            menu.current_screen = 'main_menu'
+            menu.current_screen = 'main_menu'
+        if level.game_mode == 'Endless':
+            menu.current_screen = 'show_highscore'  # temporary
+
+        god.current_mode = 'MenuSystem'
         # can place part of player.animate() here later
+
+
+
 
     def shots_fired(self):
         keys = pygame.key.get_pressed()
 
+
+
+        arrow_keys = [pygame.K_UP, pygame.K_LEFT, pygame.K_DOWN, pygame.K_RIGHT]
+        arrow_keys_pressed = [keys[key] for key in arrow_keys]
+        arrow_keys_sum = sum(arrow_keys_pressed)
+
         key_values = {pygame.K_UP: 0, pygame.K_LEFT: 90, pygame.K_DOWN: 180, pygame.K_RIGHT: 270}
-        if self.cooldown_counter == 0:
+
+
+        if arrow_keys_sum == 1 and self.cooldown_counter == 0:
             for key, rotation_angle in key_values.items():
                 if keys[key]:
                     self.bullet_direction = rotation_angle
-                    for i in range(self.concurrent_bullets):
-                        bullet = Bullet()
-                        bullets.add(bullet)
-                    self.cooldown_counter = self.cooldown_rate
+                    self.create_bullet()
+                    # for i in range(self.concurrent_bullets):
+                    #     bullet = Bullet()
+                    #     bullets.add(bullet)
+                    # bullet_sound = pygame.mixer.Sound(f'sound/laser.ogg')
+                    # bullet_sound.set_volume(0.1)
+                    # bullet_sound.play()
+                    # self.cooldown_counter = self.cooldown_rate
+        # if arrow_keys_sum == 2:
+        #     if keys[pygame.K_LEFT] and keys[pygame.K_UP]:
+        #         self.bullet_direction = 45
+        #     if keys[pygame.K_LEFT] and keys[pygame.K_DOWN]:
+        #         self.bullet_direction = 135
+        #     if keys[pygame.K_RIGHT] and keys[pygame.K_DOWN]:
+        #         self.bullet_direction = 225
+        #     if keys[pygame.K_RIGHT] and keys[pygame.K_UP]:
+        #         self.bullet_direction = 315
+        #     self.create_bullet()
 
+
+
+        # lower the cooldown by 10 per second
         if self.cooldown_counter > 0:
             if frame_counter % 6 == 0:
                 self.cooldown_counter -= 1
@@ -691,11 +1125,32 @@ class Player(pygame.sprite.Sprite):
             #         bullets.add(bullet)
             #     self.cooldown = self.firing_rate
 
+    def create_bullet(self):
+        for i in range(self.concurrent_bullets):
+            bullet = Bullet()
+            bullets.add(bullet)
+        bullet_sound = pygame.mixer.Sound(f'sound/laser.ogg')
+        bullet_sound.set_volume(0.3)
+        bullet_sound.play()
+        self.cooldown_counter = self.cooldown_rate
+        # if self.cooldown_counter == 0:
+        #     for key, rotation_angle in key_values.items():
+        #         if keys[key]:
+        #             self.bullet_direction = rotation_angle
+        #             for i in range(self.concurrent_bullets):
+        #                 bullet = Bullet()
+        #                 bullets.add(bullet)
+        #             bullet_sound = pygame.mixer.Sound(f'sound/laser.ogg')
+        #             bullet_sound.set_volume(0.1)
+        #             bullet_sound.play()
+        #             self.cooldown_counter = self.cooldown_rate
+
+
     def update_on_screen_position(self):
-        screen.blit(self.hitboxImg, (self.rect.x, self.rect.y))
+        # screen.blit(self.hitboxImg, (self.rect.x, self.rect.y))
         screen.blit(self.playerImg, (self.rect.x-self.sprite_width/2+self.hitboxImg.get_width()/2,
                                      self.rect.y-self.sprite_height/2+self.hitboxImg.get_width()/2))
-        screen.blit(self.hitboxImg, (self.rect.x, self.rect.y))
+        # screen.blit(self.hitboxImg, (self.rect.x, self.rect.y))
         # print(self.playerImg.get_height()/self.hitboxImg.get_width())
 
 class Bullet(pygame.sprite.Sprite):
@@ -703,7 +1158,7 @@ class Bullet(pygame.sprite.Sprite):
         super().__init__()
         self.image = pygame.image.load(f'graphics/bullets/{self.__class__.__name__.lower()}/1.png')
         self.image_ratio = (self.image.get_width()/self.image.get_height())
-        self.image_size_percent = 1
+        self.image_size_percent = 0.5
         self.scaled_width = int(screenwidth * self.image_size_percent / 100)
         self.scaled_height = int(self.scaled_width / self.image_ratio)
         self.image = pygame.transform.scale(self.image, (self.scaled_width, self.scaled_height))  # can be deleted?
@@ -729,6 +1184,7 @@ class Bullet(pygame.sprite.Sprite):
         if self.direction in [135, 180, 225]:
             self.rect.y += self.speed
 
+        # creates slight variation in bullet path
         self.rect.x += self.veer
         self.rect.y += self.veer
 
@@ -747,9 +1203,11 @@ class Bullet(pygame.sprite.Sprite):
                 level.defeated_enemies += 1
 
 
+god = God()
+menu = MenuSystem()
 level = Level()
 player = Player()
-bullet = Bullet()
+# bullet = Bullet()
 enemies = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
 
@@ -769,30 +1227,34 @@ while running:
         if event.type == pygame.QUIT:
             running = False
     screen.blit(level.BgImg, (0, 0))
-    player.all()
-
-    for enemy in enemies:
-        enemy.movement_method()
-        enemy.animate()
-        enemy.flip_towards_player()
-        enemy.undulate()
-        enemy.check_collision_with_player()
-        enemy.update_on_screen_position()
-    for shots in bullets:
-        shots.was_fired()
-        shots.delete_bullet()
-        shots.hit_detection()
-
-    frame_tracker()
-    level.update()
+    god.god_run()
+    # level.run()
 
 
+    if god.current_mode == 'game':
+        player.all()
+        for enemy in enemies:
+            enemy.movement_method()
+            enemy.animate()
+            enemy.flip_towards_player()
+            enemy.undulate()
+            enemy.check_collision_with_player()
+            enemy.update_on_screen_position()
+        for shots in bullets:
+            shots.was_fired()
+            shots.delete_bullet()
+            shots.hit_detection()
+        frame_tracker()
+        level.update()
+        print('ens', level.max_enemies)
+        print('buls', player.concurrent_bullets)
+        print('coold', player.cooldown_rate)
 
 
     #################################
     ### this section just for FPS ###
     fps = clock.get_fps()
-    text = fps_font.render(str(round(fps, 1)), True, (0, 0, 0))
+    text = fps_font.render(str(round(fps, 1)), True, (255, 255, 255))
     text_rect = text.get_rect()
     text_rect.topleft = (10, 10)
     screen.blit(text, text_rect)

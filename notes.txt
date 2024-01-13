@@ -1,11 +1,35 @@
+!!: When current level is chosen from menu, it doesn't actually update anything, need to manually update things?
+
+1: get robot voice to record hundred, thousand, ten-ninety
+    25, 50 and 75, then add in robot reading the scores out on highscore page
+
+
+
+0: in non-shooting level:
+    chill - good for non shooting level ------space-chillout-14194.mp3
+
+    'wedge strike incoming' used for bouncer non-shooting level?
+
+9: Create Music function which takes argument of level.current_level to say what song to play
+    maybe a second argument about other conditions, for the survival level and maybe others, like
+    feeding in the actual condition? e.g. I have an if variable:
+    and feed in play_music(level.current_level, len(enemies>0))? look into it, or change method
+
+3: when choosing a mode, game asks for Regular or Challenge mode. Regular has a healthbar for the player,
+    create some effect on being hit (screenshake, changing colour of sprite etc), and updating health bar.
+
+3: create new class TransitionScreen which shows score, press next to go to instruction screen
+    if gauntlet_mode: load instructions for next level, otherwise go to high scores for level.current_level
+
+
 2: create diagonal bullets, and with that naturally stop dual direction firing by holding two directions
 
 3: Create a property of Wedge to make them fly completely straight, if want to use for challenge levels later,
     maybe not necessary
 
-4: create enemy sounds as a function of enemy class
+4: find some freeware 80s retro synth music, different for different stages, change tempo in endless mode as score rises
 
-5: give all enemies self.score values, so can have a level about reaching a certain score
+5: create/find bullet firing sound
 
 6: when creating bullets, create parent class with future child classes in mind for different bullet types
 
