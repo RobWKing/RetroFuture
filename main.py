@@ -1,6 +1,5 @@
 import pygame, random, math, os
 from spawns import spawn_data, calculate_total_enemies
-
 pygame.init()
 
 screenwidth = 1200
@@ -12,12 +11,17 @@ total_frames = 0
 icon = pygame.image.load('graphics/misc/retroFutureTumblr.png')
 pygame.display.set_icon(icon)
 pygame.display.set_caption("Retro Future")
+menu_font = "PressStart2P-vaV7.ttf"
+HUD_font = "AerologicaRegular-K7day.ttf"
 
-def text_setter(text, font_name, font_size, r=0, g=255, b=0):
+def text_setter(text, font_name, font_size, rgb=(0, 255, 0)):
+    r, g, b = rgb
     return pygame.font.Font('fonts/'+font_name, font_size).render(str(text), True, (r,g,b))
 
-
-
+def create_rect_with_pos(text, x_pos, y_pos):
+    text_rect = text.get_rect()
+    text_rect.midtop = (x_pos, y_pos)
+    return text_rect
 
 
 fps_font = pygame.font.SysFont("Consolas", 20)
@@ -40,7 +44,7 @@ def frame_tracker():
     else:
         frame_counter += 1
         total_frames += 1
-        level.seconds_elapsed = round(total_frames / 60, 2)
+        # level.seconds_elapsed = round(total_frames / 60, 2)
 
 # more beautiful way to track frames without global variable, but less efficient
 # requires changing all instances of frame_counter to tracker(), calling the function versus just reading a global variable
@@ -57,256 +61,279 @@ def frame_tracker():
 #
 #     return count_frames
 # tracker = frame_tracker()
-#
-# class God:
-#     def __init__(self):
-#         self.current_mode = 'MenuSystem'
-#
-#     def god_run(self):
-#         if self.current_mode == 'MenuSystem':
-#             menu.run()
-#         # elif self.current_mode == 'game':
-#         #     pass
+
 
 class MenuSystem:
     def __init__(self):
         self.current_mode = 'MenuSystem'
         self.current_screen = 'splash_screen'
         self.BgImg = None  # this is set in the run() function based on what self.current_screen is
-        # self.run_game = False
 
-        self.splash_text_start_y = -10
-
-    # def check_mode(self):
-    #     if self.current_mode == 'MenuSystem':
-    #         menu.run()
+        self.splash_text_starting_position = -10
+        self.current_menu_navigation_coordinate = [0]
+        self.cursor_image = pygame.image.load('graphics/misc/cursor.png')
+        self.cursor_rotation_angle = 0
+        self.cursor_rotation_direction = 1
+        self.current_cursor_position = 0
+        self.cursor_cooldown = 0
 
     def run(self):
-
+        # blit the background
         self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{self.current_screen}.png'),
                                             (screenwidth, screenheight))
         screen.blit(self.BgImg, (0, 0))
-        if self.current_screen == 'splash_screen':
-            self.splash_screen()
-        elif self.current_screen == 'main_menu':
-            self.main_menu()
-        elif self.current_screen == 'choose_difficulty_screen':
-            self.choose_difficulty_screen()
-        elif self.current_screen == 'show_highscore':
-            self.show_highscore()
+
+        # runs the function for whichever screen the game is currently on
+        run_current_screen = getattr(self, self.current_screen)
+        run_current_screen()
+
+        if self.current_screen in ('main_menu', 'choose_difficulty_screen'):
+            self.menu_navigator()
+            self.menu_button_cooldown()
+
+    def obtain_menu_navigation_coordinates(self, dictionary):
+        # get and set navigation co_ordinates
+        self.current_menu_navigation_coordinate = []
+        for _, rect in dictionary.items():
+            self.current_menu_navigation_coordinate.append(rect.y)
+        # print(self.current_menu_navigation_coordinates)
+
+    def menu_button_cooldown(self):
+        if self.cursor_cooldown > 0:
+            self.cursor_cooldown -= 1
+    def menu_navigator(self):
+
+        # create cursor
+        cursor_image = pygame.image.load('graphics/misc/cursor.png')
+        cursor_rect = cursor_image.get_rect()
+        cursor_width = cursor_image.get_width()
+
+        # animate cursor
+        if not frame_counter % 2 == 0:
+            if self.cursor_rotation_angle > 8:
+                self.cursor_rotation_direction = -1
+            elif self.cursor_rotation_angle < -8:
+                self.cursor_rotation_direction = 1
+
+            self.cursor_rotation_angle += self.cursor_rotation_direction
+            self.cursor_image = pygame.transform.rotate(cursor_image, self.cursor_rotation_angle)
+
+
+        # place cursor using list self.current_menu_navigation_coordinate to dictate where it can be rendered
+        # use w and s keys to control cursor's vertical movement
+
+        # x co-ordinate fixed at center of screen
+        cursor_rect.x = screenwidth/2 - (cursor_width/2)
+
+        # y co-ordinate determined by list options
+        if self.cursor_cooldown == 0:
+            if keys[pygame.K_s]:
+                if self.current_cursor_position < len(self.current_menu_navigation_coordinate)-1:
+                    self.current_cursor_position += 1
+                    self.cursor_cooldown = 15
+
+            if keys[pygame.K_w]:
+                if self.current_cursor_position > 0:
+                    self.current_cursor_position -= 1
+                    self.cursor_cooldown = 15
+
+
+        cursor_rect.y = self.current_menu_navigation_coordinate[self.current_cursor_position]+10
+
+        # draw cursor
+        screen.blit(self.cursor_image, cursor_rect)
+
+        # handle going back to main_menu
+        if keys[pygame.K_ESCAPE]:
+            self.current_screen = 'main_menu'
+
+
 
     def splash_screen(self):
-        # draw the title screen text and animate it
 
+        # draw the title screen text and blit to screen
         splash_screen_text = text_setter('Welcome to RetroFuture',
-                                         'PressStart2P-vaV7.ttf',
-                                         50,
-                                         0, 255, 0)
+                                         menu_font,
+                                         50)
 
-        splash_screen_text_rect = splash_screen_text.get_rect()
-        splash_screen_text_rect.midtop = (screenwidth / 2, self.splash_text_start_y)
+        splash_screen_text_rect = create_rect_with_pos(splash_screen_text,
+                                                       (screenwidth/2),
+                                                       self.splash_text_starting_position)
 
         screen.blit(splash_screen_text, splash_screen_text_rect)
 
-        if self.splash_text_start_y < screenheight/3:
-            self.splash_text_start_y += 3
+        # animate the text, falling down to a certain position, then loading second line of text
+        if self.splash_text_starting_position < screenheight/3:
+            self.splash_text_starting_position += 3
 
-        if self.splash_text_start_y >= screenheight/3:
-            splash_under_text = 'Press \'Enter\' to continue'
-            splash_under_text = splash_font_small.render(splash_under_text, True, (0,255,0))
-            splash_under_text_rect = splash_under_text.get_rect()
-            splash_under_text_rect.midtop = (screenwidth/2, screenheight/2)
+        if self.splash_text_starting_position >= screenheight/3:
+            splash_under_text = text_setter('Press \'spacebar\' to continue',
+                                            menu_font,
+                                            20)
+            splash_under_text_rect = create_rect_with_pos(splash_under_text,
+                                                          screenwidth/2,
+                                                          screenheight/2)
 
             screen.blit(splash_under_text, splash_under_text_rect)
 
-        # keys = pygame.key.get_pressed()
-
-        if keys[pygame.K_RETURN]:
+        # how to advance from the splash screen
+        if keys[pygame.K_SPACE]:
             self.current_screen = 'main_menu'
-            print('key pressed in splash screen')
 
-    # def main_menu(self):
-    #     pass
-    #     # keys = pygame.key.get_pressed()
-    #
-    #     # i = 2
-    #     # menu_items = ('Gauntlet',
-    #     #               'Endless',
-    #     #               'High Scores')
-    #     # for menu_item in menu_items:
-    #     #     text = splash_font_small.render(menu_item, True, (0,255,0))
-    #     #     rect = text.get_rect()
-    #     #     rect.center = (screenwidth/2, int(screenheight/i))
-    #     #     print(i)
-    #     #     i += 0.25
-    #     #     screen.blit(text, rect)
-    #
-    #
-    #     # could potentially make a sub-class for this, but really doesn't seem worth it?
-    #     # could also maybe be a standalone function? not finished writing it yet, idk
-    #     # menu_item_1 = 'Gauntlet'
-    #     # menu_item_1 = splash_font_small.render(menu_item_1, True, (0, 255, 0))
-    #     # menu_item_1_rect = menu_item_1.get_rect()
-    #     # menu_item_1_rect.midtop = (screenwidth/2, 550)
-    #     #
-    #     # menu_item_2 = 'Endless'
-    #     # menu_item_2 = splash_font_small.render(menu_item_2, True, (0, 255, 0))
-    #     # menu_item_2_rect = menu_item_2.get_rect()
-    #     # menu_item_2_rect.midtop = (screenwidth / 2, 350)
-    #     #
-    #     # menu_item_3 = 'High Score'
-    #     # menu_item_3 = splash_font_small.render(menu_item_3, True, (0, 255, 0))
-    #     # menu_item_3_rect = menu_item_3.get_rect()
-    #     # menu_item_3_rect.midtop = (screenwidth / 2, 150)
-    #     #
-    #     # menu_rects = [menu_item_1_rect,menu_item_2_rect,menu_item_3_rect]
-    #     #
-    #     # screen.blit(menu_item_1, menu_item_1_rect)
-    #     # screen.blit(menu_item_2, menu_item_2_rect)
-    #     # screen.blit(menu_item_3, menu_item_3_rect)
-    #
-    #
-    #     # later change to mouse colliderect + maybe player shooting the menu options
-    #     # if keys[pygame.K_SPACE]:
-    #     #     self.run_game = True
-    #     #     print('key pressed in main menu')
-    #     #     god.current_mode = 'game'
 
     def main_menu(self):
-        # print('this is running')
 
-        # these will probably have to be their own class to make the code smoother, so i can loop through and access
-        # the objects name and other properties, make Sprite groups etc
+        # variables to establish names of menu items which also align with level.game_mode,
+        # the values in options_to_level_mapping are self.currentlevel values
+        menu_options = ['Gauntlet', 'Endless', 'Survive']
+        options_to_level_mapping = {'Gauntlet': 1, 'Endless': 12, 'Survive': 11}
 
-        menu_item_1_name = 'Gauntlet'
-        menu_item_1 = splash_font_small.render(menu_item_1_name, True, (0, 255, 0))
-        menu_item_1_rect = menu_item_1.get_rect()
-        menu_item_1_rect.midtop = (screenwidth / 2, 550)
+        # for calculating where to draw the items evenly across the screen (y co-ordinate only)
+        # menu_options_dictionary for storing {text:rect} to iterate through later
+        number_of_options = len(menu_options)
+        text_size = 20
+        total_spacing = screenheight - (number_of_options * text_size)
+        spacing = total_spacing // (number_of_options + 1)
+        menu_options_dictionary = {}
+        current_item = 1
 
-        menu_item_2_name = 'Endless'
-        menu_item_2 = splash_font_small.render(menu_item_2_name, True, (0, 255, 0))
-        menu_item_2_rect = menu_item_2.get_rect()
-        menu_item_2_rect.midtop = (screenwidth / 2, 350)
+        # iterates through the list of menu options and creates the text and the rectangle for it,
+        # with it's co-ords set to be evenly spaced across the screen in a vertical list
+        for option in menu_options:
+            menu_text = text_setter(option,
+                                    menu_font,
+                                    text_size)
+            rect = create_rect_with_pos(menu_text,
+                                        screenwidth/2,
+                                        spacing*current_item)
+            current_item += 1
+            menu_options_dictionary[menu_text] = rect
 
-        menu_item_3_name = 'Survive'
-        menu_item_3 = splash_font_small.render(menu_item_3_name, True, (0, 255, 0))
-        menu_item_3_rect = menu_item_3.get_rect()
-        menu_item_3_rect.midtop = (screenwidth / 2, 150)
+        # draw menu items on-screen
+        for menu_text, rects in menu_options_dictionary.items():
+            screen.blit(menu_text, rects)
 
-        screen.blit(menu_item_1, menu_item_1_rect)
-        screen.blit(menu_item_2, menu_item_2_rect)
-        screen.blit(menu_item_3, menu_item_3_rect)
-
+        # if mouse clicks on the text, acquire the name of the rectangle, and use it to set the current game_mode
+        # and current_level as well as background sprite, then move the menu onto the next screen
         if pygame.mouse.get_pressed()[0]:
             mouse_pos = pygame.mouse.get_pos()
-            if menu_item_1_rect.collidepoint(mouse_pos):
-                print(menu_item_1_name)  # Gauntlet
-                print('directory not yet created')
+            for menu_text, rect in menu_options_dictionary.items():
+                if rect.collidepoint(mouse_pos):
+                    option_name = menu_options[(rect.y//spacing)-1]
+                    level.game_mode = option_name
+                    level.current_level = options_to_level_mapping[option_name]
+                    level.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{level.current_level}.png'),
+                                                         (screenwidth, screenheight))
+                    self.current_screen = 'choose_difficulty_screen'
+                    print('level.game_mode:', level.game_mode, '| self.current_level: ', level.current_level)
 
-            elif menu_item_2_rect.collidepoint(mouse_pos):
-                print(menu_item_2_name)  # Endless
-                level.current_level = 12
-                level.game_mode = 'Endless'
-                level.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{level.current_level}.png'),
-                                                     (screenwidth, screenheight))
-                # self.run_game = True
-                menu.current_mode = 'game'
-
-            elif menu_item_3_rect.collidepoint(mouse_pos):
-                print(menu_item_3_name)  # Survive
-                level.current_level = 11
-                level.game_mode = 'Survive'
+        if self.cursor_cooldown == 0:
+            if keys[pygame.K_RETURN]:
+                option_name = menu_options[self.current_cursor_position]
+                level.game_mode = option_name
+                level.current_level = options_to_level_mapping[option_name]
                 level.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{level.current_level}.png'),
                                                      (screenwidth, screenheight))
                 self.current_screen = 'choose_difficulty_screen'
+                self.current_cursor_position = 0
+                self.cursor_cooldown = 15
 
+        # get and set navigation co_ordinates for UI navigation
+        self.obtain_menu_navigation_coordinates(menu_options_dictionary)
 
     def choose_difficulty_screen(self):
 
-        menu_item_1_name = 'Regular'
-        menu_item_1 = splash_font_small.render(menu_item_1_name, True, (0, 255, 0))
-        menu_item_1_rect = menu_item_1.get_rect()
-        menu_item_1_rect.midtop = (300, screenheight/2-50)
+        menu_options = ['Regular', 'Challenging']
+        number_of_options = len(menu_options)
+        text_size = 20
+        total_spacing = screenheight - (number_of_options * text_size)
+        spacing = total_spacing // (number_of_options + 1)
+        menu_options_dictionary = {}
+        current_item = 1
 
-        menu_item_2_name = 'Full Send'
-        menu_item_2 = splash_font_small.render(menu_item_2_name, True, (0, 255, 0))
-        menu_item_2_rect = menu_item_2.get_rect()
-        menu_item_2_rect.midtop = (900, screenheight/2-50)
+        # iterates through the list of menu options and creates the text and the rectangle for it,
+        # with it's co-ords set to be evenly spaced across the screen in a vertical list
+        for option in menu_options:
+            menu_text = text_setter(option,
+                                    menu_font,
+                                    text_size)
+            rect = create_rect_with_pos(menu_text,
+                                        screenwidth / 2,
+                                        spacing * current_item)
+            current_item += 1
+            menu_options_dictionary[menu_text] = rect
 
-        menu_item_3_name = 'We Enjoy Dying'
-        menu_item_3 = splash_font_x_small.render(menu_item_3_name, True, (0, 255, 0))
-        menu_item_3_rect = menu_item_2.get_rect()
-        menu_item_3_rect.topleft = (10, 10)
+        # draw menu items on-screen
+        for menu_text, rects in menu_options_dictionary.items():
+            screen.blit(menu_text, rects)
 
-        screen.blit(menu_item_1, menu_item_1_rect)
-        screen.blit(menu_item_2, menu_item_2_rect)
-        screen.blit(menu_item_3, menu_item_3_rect)
-
-
-
+        # find rectangle's corresponding string, use it to set the difficulty, start the game loop
         if pygame.mouse.get_pressed()[0]:
             mouse_pos = pygame.mouse.get_pos()
-            if menu_item_1_rect.collidepoint(mouse_pos):
-                print(menu_item_1_name)
-                level.max_enemies = 1
-                # self.run_game = True
+            for menu_text, rect in menu_options_dictionary.items():
+                if rect.collidepoint(mouse_pos):
+                    option_name = menu_options[(rect.y//spacing)-1]
+                    level.difficulty = option_name
+                    menu.current_mode = 'game'
+
+        # do effectively the same thing, but with key inputs, and related to the cursor's current position
+        if self.cursor_cooldown == 0:
+            if keys[pygame.K_RETURN]:
+                option_name = menu_options[self.current_cursor_position]
+                level.difficulty = option_name
+                self.current_cursor_position = 0
                 menu.current_mode = 'game'
 
-            elif menu_item_2_rect.collidepoint(mouse_pos):
-                print(menu_item_2_name)
-                level.max_enemies = 50
-                # self.run_game = True
-                menu.current_mode = 'game'
-
-            elif menu_item_3_rect.collidepoint(mouse_pos):
-                print(menu_item_3_name)
-                level.max_enemies = 200
-                # self.run_game = True
-                menu.current_mode = 'game'
+        # get and set navigation co_ordinates for UI navigation
+        self.obtain_menu_navigation_coordinates(menu_options_dictionary)
 
     def show_highscore(self):
 
-        file_path = "scores.lp"
+        if level.difficulty == 'Regular':
+            file_path = "scores_regular.lp"
+        else:  # elif level.difficulty == 'Challenging':
+            file_path = "scores_difficult.lp"
 
         with open(file_path, "r") as file:
             current_highscore = int(file.read())
-            # current_highscore = int(current_highscore)
 
         if level.current_score > current_highscore:
             current_highscore = level.current_score
 
-            with open(file_path, "w") as file:  # Use "a" for append mode instead of "w" to append data to an existing file
+            with open(file_path, "w") as file:
                 file.write(str(current_highscore))
 
+        # variables to establish name of scores, put them into a list then pass the list to create text on screen
+        difficulty = level.difficulty+' Mode'
+        record_score = 'Record Highscore: ' + str(current_highscore)
+        current_score = 'Your score: ' + str(level.current_score)
+        menu_options = [difficulty, record_score, current_score, 'Press Spacebar to return to main menu']
+        number_of_options = len(menu_options)
+        text_size = 20
+        total_spacing = screenheight - (number_of_options * text_size)
+        spacing = total_spacing // (number_of_options + 1)
+        menu_options_dictionary = {}
+        current_item = 1
 
-        string1 = 'Record Highscore: ' + str(current_highscore)
-        menu_item_1_name = string1
-        menu_item_1 = splash_font_small.render(menu_item_1_name, True, (0, 255, 0))
-        menu_item_1_rect = menu_item_1.get_rect()
-        menu_item_1_rect.midtop = (screenwidth / 2, 550)
+        # iterates through the list of menu options and creates the text and the rectangle for it,
+        # with it's co-ords set to be evenly spaced across the screen in a vertical list
+        for option in menu_options:
+            menu_text = text_setter(option,
+                                    menu_font,
+                                    text_size)
+            rect = create_rect_with_pos(menu_text,
+                                        screenwidth/2,
+                                        spacing*current_item)
+            current_item += 1
+            menu_options_dictionary[menu_text] = rect
 
-        string2 = 'Your score: ' + str(level.current_score)
-        menu_item_2_name = string2
-        menu_item_2 = splash_font_small.render(menu_item_2_name, True, (0, 255, 0))
-        menu_item_2_rect = menu_item_2.get_rect()
-        menu_item_2_rect.midtop = (screenwidth / 2, 350)
+        # draw items on-screen
+        for menu_text, rects in menu_options_dictionary.items():
+            screen.blit(menu_text, rects)
 
-        menu_item_3_name = 'Press Enter to return to main menu'
-        menu_item_3 = splash_font_small.render(menu_item_3_name, True, (0, 255, 0))
-        menu_item_3_rect = menu_item_3.get_rect()
-        menu_item_3_rect.midtop = (screenwidth / 2, 150)
-
-        screen.blit(menu_item_1, menu_item_1_rect)
-        screen.blit(menu_item_2, menu_item_2_rect)
-        screen.blit(menu_item_3, menu_item_3_rect)
-
-        # keys = pygame.key.get_pressed()
-        if keys[pygame.K_RETURN]:
+        if keys[pygame.K_SPACE]:
             level.current_score = 0
             self.current_screen = 'main_menu'
-            print('key pressed in show_highscore')
-
-
 
 
 
@@ -317,16 +344,16 @@ class Level:
         self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{self.current_level}.png'), (screenwidth, screenheight))
         self.data = dict(spawn_data)
 
-
-        self.score_objective = False
+        # self.score_objective = False
         self.current_score = 0
         self.score_goal = 10000
 
-        self.time_objective = True
+        # self.time_objective = True
         self.seconds_elapsed = 0
+        self.total_frames_elapsed = 0
         self.time_goal = 60
 
-        self.kill_objective = False
+        # self.kill_objective = False
         self.current_level_total_enemies = (calculate_total_enemies(spawn_data)).get(self.current_level)
         self.spawned_enemies = 0  # this may now be obsolete
         self.defeated_enemies = 0
@@ -341,6 +368,8 @@ class Level:
         self.music_playing = False
 
         self.game_mode = 'Gauntlet'
+        self.difficulty = 'Regular'
+
 
         # TEMPORARY
         self.music = False
@@ -349,7 +378,10 @@ class Level:
 
 
     def update(self):
+
         screen.blit(self.BgImg, (0, 0))
+
+        self.set_difficulty()
 
         if self.game_mode == 'Endless':
             self.endless_enemies()
@@ -361,8 +393,19 @@ class Level:
 
         elif self.game_mode == 'Gauntlet':
             pass
+        self.track_seconds_elapsed()
         self.level_transition()
 
+    def set_difficulty(self):
+        if self.difficulty == 'Regular':
+            self.max_enemies = 10
+        elif self.difficulty == 'Challenging':
+            self.max_enemies = 50
+
+    def track_seconds_elapsed(self):
+        if frame_counter < 59:
+            self.total_frames_elapsed += 1
+            self.seconds_elapsed = round(self.total_frames_elapsed / 60, 2)
 
     def level_transition(self):
 
@@ -1022,6 +1065,7 @@ class Player(pygame.sprite.Sprite):
         level.current_level_total_enemies = 0
         level.defeated_enemies = 0
         level.spawned_enemies = 0
+        level.total_frames_elapsed = 0
         level.seconds_elapsed = 0
         level.announcement_played = False
         level.endless_mode = False
@@ -1209,12 +1253,12 @@ while running:
     # screen.blit(level.BgImg, (0, 0))  # this doesn't belong here
 
     keys = pygame.key.get_pressed()
-
+    frame_tracker()
     if menu.current_mode == 'MenuSystem':
         menu.run()
-
+        # frame_tracker()
     if menu.current_mode == 'game':
-        frame_tracker()
+        # frame_tracker()
         level.update()
 
         player.check_in_bounds()
@@ -1249,4 +1293,5 @@ while running:
     screen.blit(text, text_rect)
     #################################
     pygame.display.flip()
+    # print(level.seconds_elapsed)
     clock.tick(60)
