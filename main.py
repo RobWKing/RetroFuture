@@ -13,6 +13,7 @@ pygame.display.set_icon(icon)
 pygame.display.set_caption("Retro Future")
 menu_font = "PressStart2P-vaV7.ttf"
 HUD_font = "AerologicaRegular-K7day.ttf"
+fps_font = menu_font
 
 def text_setter(text, font_name, font_size, rgb=(0, 255, 0)):
     r, g, b = rgb
@@ -24,13 +25,13 @@ def create_rect_with_pos(text, x_pos, y_pos):
     return text_rect
 
 
-fps_font = pygame.font.SysFont("Consolas", 20)
-score_font_path = "fonts/AerologicaRegular-K7day.ttf"
-score_font = pygame.font.Font(score_font_path, 50)
-splash_font_path = "fonts/PressStart2P-vaV7.ttf"
-splash_font = pygame.font.Font(splash_font_path, 50)
-splash_font_small = pygame.font.Font(splash_font_path, 20)
-splash_font_x_small = pygame.font.Font(splash_font_path, 10)
+# fps_font = pygame.font.SysFont("Consolas", 20)
+# score_font_path = "fonts/AerologicaRegular-K7day.ttf"
+# score_font = pygame.font.Font(score_font_path, 50)
+# splash_font_path = "fonts/PressStart2P-vaV7.ttf"
+# splash_font = pygame.font.Font(splash_font_path, 50)
+# splash_font_small = pygame.font.Font(splash_font_path, 20)
+# splash_font_x_small = pygame.font.Font(splash_font_path, 10)
 
 # splash_text = 'Welcome to RetroFuture!'
 # splash_screen_text = splash_font.render(splash_text, True, (0, 255, 0))
@@ -64,18 +65,32 @@ def frame_tracker():
 
 
 class MenuSystem:
-    def __init__(self):
+    def __init__(self, pass_info_to_menu, current_score):
         self.current_mode = 'MenuSystem'
         self.current_screen = 'splash_screen'
         self.BgImg = None  # this is set in the run() function based on what self.current_screen is
-
         self.splash_text_starting_position = -10
+
+        # related to navigating in menus
         self.current_menu_navigation_coordinate = [0]
         self.cursor_image = pygame.image.load('graphics/misc/cursor.png')
         self.cursor_rotation_angle = 0
         self.cursor_rotation_direction = 1
         self.current_cursor_position = 0
         self.cursor_cooldown = 0
+
+        # logic
+        self.pass_info = pass_info_to_menu
+        self.difficulty = None
+        self.current_level = None
+        self.game_mode = None
+
+        # to receive from level later
+
+        self.current_score = current_score
+
+    def pass_info_to_game(self):
+        self.pass_info(self.difficulty, self.current_level, self.game_mode, self.current_mode)
 
     def run(self):
         # blit the background
@@ -91,12 +106,13 @@ class MenuSystem:
             self.menu_navigator()
             self.menu_button_cooldown()
 
+        self.pass_info_to_game()
+
     def obtain_menu_navigation_coordinates(self, dictionary):
         # get and set navigation co_ordinates
         self.current_menu_navigation_coordinate = []
         for _, rect in dictionary.items():
             self.current_menu_navigation_coordinate.append(rect.y)
-        # print(self.current_menu_navigation_coordinates)
 
     def menu_button_cooldown(self):
         if self.cursor_cooldown > 0:
@@ -109,14 +125,13 @@ class MenuSystem:
         cursor_width = cursor_image.get_width()
 
         # animate cursor
-        if not frame_counter % 2 == 0:
-            if self.cursor_rotation_angle > 8:
-                self.cursor_rotation_direction = -1
-            elif self.cursor_rotation_angle < -8:
-                self.cursor_rotation_direction = 1
+        if self.cursor_rotation_angle > 8:
+            self.cursor_rotation_direction = -0.5
+        elif self.cursor_rotation_angle < -8:
+            self.cursor_rotation_direction = 0.5
 
-            self.cursor_rotation_angle += self.cursor_rotation_direction
-            self.cursor_image = pygame.transform.rotate(cursor_image, self.cursor_rotation_angle)
+        self.cursor_rotation_angle += self.cursor_rotation_direction
+        self.cursor_image = pygame.transform.rotate(cursor_image, self.cursor_rotation_angle)
 
 
         # place cursor using list self.current_menu_navigation_coordinate to dictate where it can be rendered
@@ -148,7 +163,6 @@ class MenuSystem:
             self.current_screen = 'main_menu'
 
 
-
     def splash_screen(self):
 
         # draw the title screen text and blit to screen
@@ -167,7 +181,7 @@ class MenuSystem:
             self.splash_text_starting_position += 3
 
         if self.splash_text_starting_position >= screenheight/3:
-            splash_under_text = text_setter('Press \'spacebar\' to continue',
+            splash_under_text = text_setter('Press \'Enter\' to continue',
                                             menu_font,
                                             20)
             splash_under_text_rect = create_rect_with_pos(splash_under_text,
@@ -177,16 +191,16 @@ class MenuSystem:
             screen.blit(splash_under_text, splash_under_text_rect)
 
         # how to advance from the splash screen
-        if keys[pygame.K_SPACE]:
+        if keys[pygame.K_RETURN]:
             self.current_screen = 'main_menu'
-
+            self.cursor_cooldown = 15
 
     def main_menu(self):
 
         # variables to establish names of menu items which also align with level.game_mode,
         # the values in options_to_level_mapping are self.currentlevel values
         menu_options = ['Gauntlet', 'Endless', 'Survive']
-        options_to_level_mapping = {'Gauntlet': 1, 'Endless': 12, 'Survive': 11}
+        options_to_level_mapping = {'Gauntlet': 5, 'Endless': 12, 'Survive': 11}
 
         # for calculating where to draw the items evenly across the screen (y co-ordinate only)
         # menu_options_dictionary for storing {text:rect} to iterate through later
@@ -220,20 +234,24 @@ class MenuSystem:
             for menu_text, rect in menu_options_dictionary.items():
                 if rect.collidepoint(mouse_pos):
                     option_name = menu_options[(rect.y//spacing)-1]
-                    level.game_mode = option_name
-                    level.current_level = options_to_level_mapping[option_name]
-                    level.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{level.current_level}.png'),
-                                                         (screenwidth, screenheight))
+                    self.game_mode = option_name
+                    self.current_level = options_to_level_mapping[option_name]
+                    # level.game_mode = option_name
+                    # level.current_level = options_to_level_mapping[option_name]
+                    # level.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{level.current_level}.png'),
+                    #                                      (screenwidth, screenheight))
                     self.current_screen = 'choose_difficulty_screen'
-                    print('level.game_mode:', level.game_mode, '| self.current_level: ', level.current_level)
+                    # print('level.game_mode:', level.game_mode, '| self.current_level: ', level.current_level)
 
         if self.cursor_cooldown == 0:
             if keys[pygame.K_RETURN]:
                 option_name = menu_options[self.current_cursor_position]
-                level.game_mode = option_name
-                level.current_level = options_to_level_mapping[option_name]
-                level.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{level.current_level}.png'),
-                                                     (screenwidth, screenheight))
+                self.game_mode = option_name
+                self.current_level = options_to_level_mapping[option_name]
+                # level.game_mode = option_name
+                # level.current_level = options_to_level_mapping[option_name]
+                # level.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{level.current_level}.png'),
+                #                                      (screenwidth, screenheight))
                 self.current_screen = 'choose_difficulty_screen'
                 self.current_cursor_position = 0
                 self.cursor_cooldown = 15
@@ -273,23 +291,64 @@ class MenuSystem:
             for menu_text, rect in menu_options_dictionary.items():
                 if rect.collidepoint(mouse_pos):
                     option_name = menu_options[(rect.y//spacing)-1]
-                    level.difficulty = option_name
-                    menu.current_mode = 'game'
+                    self.difficulty = option_name
+                    # level.difficulty = option_name
+                    self.current_mode = 'game'
 
         # do effectively the same thing, but with key inputs, and related to the cursor's current position
         if self.cursor_cooldown == 0:
             if keys[pygame.K_RETURN]:
                 option_name = menu_options[self.current_cursor_position]
-                level.difficulty = option_name
+                self.difficulty = option_name
+                # level.difficulty = option_name
                 self.current_cursor_position = 0
-                menu.current_mode = 'game'
+                self.current_mode = 'game'
 
         # get and set navigation co_ordinates for UI navigation
         self.obtain_menu_navigation_coordinates(menu_options_dictionary)
 
+
+
+class Game:
+    def __init__(self):
+        # for first cycle
+        self.mode = 'MenuSystem'
+        self.menu = None
+        self.level = None
+
+        # from menu
+        self.difficulty = None
+        self.current_level = None
+        self.game_mode = None
+
+        # from level
+        self.current_score = 0
+        self.previous_mode = None
+
+        # unused for gauntlet mode later
+        self.gauntlet_level = 1
+        # need to find a way to communicate whether level was won or lost to know what to tell menu to render
+
+    def create_menu(self):
+        self.menu = MenuSystem(self.get_info_from_menu, self.current_score)
+
+    def create_level(self):
+        self.level = Level(self.difficulty, self.current_level, self.game_mode, self.get_info_from_level)
+
+    def get_info_from_menu(self, difficulty, current_level, game_mode, mode):
+        self.difficulty = difficulty
+        self.current_level = current_level
+        self.game_mode = game_mode
+        self.mode = mode
+
+    def get_info_from_level(self, current_score, previous_mode, gauntlet_level):
+        self.current_score = current_score
+        self.previous_mode = previous_mode
+        self.gauntlet_level = gauntlet_level
+
     def show_highscore(self):
 
-        if level.difficulty == 'Regular':
+        if self.difficulty == 'Regular':
             file_path = "scores_regular.lp"
         else:  # elif level.difficulty == 'Challenging':
             file_path = "scores_difficult.lp"
@@ -297,26 +356,30 @@ class MenuSystem:
         with open(file_path, "r") as file:
             current_highscore = int(file.read())
 
-        if level.current_score > current_highscore:
-            current_highscore = level.current_score
+        if self.current_score > current_highscore:
+            current_highscore = self.current_score
 
             with open(file_path, "w") as file:
                 file.write(str(current_highscore))
 
         # variables to establish name of scores, put them into a list then pass the list to create text on screen
-        difficulty = level.difficulty+' Mode'
+        difficulty = self.difficulty+' Mode'
         record_score = 'Record Highscore: ' + str(current_highscore)
-        current_score = 'Your score: ' + str(level.current_score)
-        menu_options = [difficulty, record_score, current_score, 'Press Spacebar to return to main menu']
+        current_score = 'Your score: ' + str(self.current_score)
+        # the variables that will be blitted onto the screen
+        menu_options = [difficulty, record_score, current_score, 'Press Enter to return to main menu']
+
+        # to calculate even spacing across the y-axis of the page
         number_of_options = len(menu_options)
         text_size = 20
         total_spacing = screenheight - (number_of_options * text_size)
         spacing = total_spacing // (number_of_options + 1)
-        menu_options_dictionary = {}
-        current_item = 1
 
         # iterates through the list of menu options and creates the text and the rectangle for it,
         # with it's co-ords set to be evenly spaced across the screen in a vertical list
+        menu_options_dictionary = {}
+        current_item = 1
+
         for option in menu_options:
             menu_text = text_setter(option,
                                     menu_font,
@@ -331,44 +394,78 @@ class MenuSystem:
         for menu_text, rects in menu_options_dictionary.items():
             screen.blit(menu_text, rects)
 
-        if keys[pygame.K_SPACE]:
-            level.current_score = 0
-            self.current_screen = 'main_menu'
+        # return to menu otherwise
+        if keys[pygame.K_RETURN]:
+            self.previous_mode = None
+
+    def run(self):
+
+        # creates and runs levels and menus depending on the current self.mode. Also shows highscores in the case
+        # that the previous level was 'Endless' mode. show_highscore() then resets previous_mode to None, and self.menu
+        # is created in the next loop
+
+        if self.mode == 'MenuSystem':
+            self.level = None
+
+            if self.menu is None:
+                # if the previous game was endless, show the scores (other modes aren't score-based)
+                if self.previous_mode == 'Endless':
+                    self.show_highscore()
+                # otherwise, create a new menu
+                else:
+                    self.create_menu()
+
+            else:
+                self.menu.run()
 
 
+        elif self.mode == 'game':
+            self.menu = None
+
+            if self.level is None:
+                self.create_level()
+
+            self.level.run()
 
 class Level:
-    def __init__(self):
-        self.current_level = 2
+    def __init__(self, difficulty, current_level, game_mode, pass_info_to_menu):
+        self.current_level = current_level
         # 900 x 600 is for the temporary image, otherwise later will be screenwidth, screenheight
         self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{self.current_level}.png'), (screenwidth, screenheight))
         self.data = dict(spawn_data)
 
-        # self.score_objective = False
+        # for endless mode
         self.current_score = 0
-        self.score_goal = 10000
+        self.score_goal = 10000  # for score based levels (none existing)
 
-        # self.time_objective = True
+        # for survive mode
         self.seconds_elapsed = 0
         self.total_frames_elapsed = 0
         self.time_goal = 60
 
-        # self.kill_objective = False
+        # for gauntlet mode
         self.current_level_total_enemies = (calculate_total_enemies(spawn_data)).get(self.current_level)
         self.spawned_enemies = 0  # this may now be obsolete
         self.defeated_enemies = 0
 
-        self.endless_mode = False
         self.max_enemies = 5
-        self.other_level_finished_flag = False  # e.g. touching a portal
-        self.level_complete = False
+        self.max_enemies_endless = 5
+
+        # general settings
+        self.game_mode = game_mode
+        self.difficulty = difficulty
+
+
+
+        self.other_level_finished_flag = False  # e.g. touching a portal   UNUSED
+        self.level_complete = False     # UNUSED
 
         self.spawn_cooldown = 0
         self.announcement_played = False
         self.music_playing = False
 
-        self.game_mode = 'Gauntlet'
-        self.difficulty = 'Regular'
+        # share self.current_score, self.game_mode, self.current_level (temporary) to Game
+        self.pass_info = pass_info_to_menu
 
 
         # TEMPORARY
@@ -376,8 +473,11 @@ class Level:
         self.bg_track = pygame.mixer.Sound(f'sound/music/a_hero_of_the_80s.ogg')
         self.temporaryself_bg_ogg = pygame.mixer.Sound('sound/music/a_hero_of_the_80s.ogg')
 
+    def pass_info_to_menu(self):
+        self.pass_info(self.current_score, self.game_mode, self.current_level)
 
-    def update(self):
+
+    def run(self):
 
         screen.blit(self.BgImg, (0, 0))
 
@@ -385,23 +485,27 @@ class Level:
 
         if self.game_mode == 'Endless':
             self.endless_enemies()
-            self.display_score()
 
         elif self.game_mode == 'Survive':
-                self.survival_mode_enemies()
-                self.display_timer()
+            self.survival_mode_enemies()
 
         elif self.game_mode == 'Gauntlet':
-            pass
+            self.gauntlet_enemies()
+
+        self.display_timer()
         self.track_seconds_elapsed()
+        self.pass_info_to_menu()
         self.level_transition()
 
     def set_difficulty(self):
         if self.difficulty == 'Regular':
             self.max_enemies = 10
+            self.max_enemies_endless = 30
+            self.time_goal = 60
         elif self.difficulty == 'Challenging':
-            self.max_enemies = 50
-
+            self.max_enemies = 75
+            self.max_enemies_endless = 1000
+            self.time_goal = 99
     def track_seconds_elapsed(self):
         if frame_counter < 59:
             self.total_frames_elapsed += 1
@@ -425,7 +529,6 @@ class Level:
             mission_complete = pygame.mixer.Sound('sound/announcer/mission_completed.wav')
             mission_complete.play()
 
-            self.endless_mode = False
             # may only work for endless mode?
             for enemy in enemies:
                 enemies.remove(enemy)
@@ -493,9 +596,16 @@ class Level:
             enemy = globals()[enemy_name](co_ords[0], co_ords[1])
             enemies.add(enemy)
 
-            level.spawned_enemies += 1
+            self.spawned_enemies += 1
             # spawn_sound = pygame.mixer.Sound(f'sound/{enemy_name}.wav')
             # spawn_sound.play()
+
+    def gauntlet_enemies(self):
+
+        self.enemy_patterns()
+
+        if self.defeated_enemies == self.spawned_enemies:
+            print('level completed')
 
     def endless_enemies(self):
 
@@ -506,17 +616,8 @@ class Level:
                     self.temporaryself_bg_ogg.play()
                     self.music_playing = True
             # number of enemies ramps up from 2, maxes at 50, this is temporary code for easy adjusting
-            self.max_enemies = min(math.ceil(((self.current_score+100)/250))+5,250)
+            self.max_enemies = min(math.ceil(((self.current_score+100)/100)),self.max_enemies_endless)
 
-        if self.max_enemies < 20:
-            player.concurrent_bullets = 1
-            player.cooldown_rate = 8
-        if self.max_enemies >= 20:
-            player.concurrent_bullets = 3
-            player.cooldown_rate = 2
-        if self.max_enemies > 100:
-            player.concurrent_bullets = 3
-            player.cooldown_rate = 1
 
         # if max_enemies = 50, once every 200 enemies, cause a delay of 6-20 seconds (to clear screen)
         if self.defeated_enemies != 0 and self.defeated_enemies % (self.max_enemies*4) == 0:
@@ -542,7 +643,7 @@ class Level:
                         min_max = (12,20)
                     elif enemy_choice == 'Palm':
                         min_max = (3,10)
-                    level.create_enemy(enemy_choice, random.randint(*min_max))
+                    self.create_enemy(enemy_choice, random.randint(*min_max))
 
     def survival_mode_enemies(self):
         # survival mode is level 4
@@ -569,41 +670,38 @@ class Level:
                     self.endless_enemies()
 
 
-
-
-
-
-
-    # These three are kept separate now, not because WET but because I may choose to make them more different
-    # perhaps different enough to justify being separate? e.g. a level with two win conditions?
     def display_timer(self):
-        remaining_time = self.time_goal - math.floor(self.seconds_elapsed)
-        red, green = 0, 255
+        # set default hud colour to green
+        rgb = (0,255,0)
 
-        if 5 < remaining_time <= 9:
-            red, green = 255, 165
-        if remaining_time <= 5:
-            red, green = 255, 0
+        # display remaining time if playing Survive mode, change colour to orange and red as nears 0.
+        if self.game_mode == 'Survive':
+            remaining_time = self.time_goal - math.floor(self.seconds_elapsed)
 
-        time_text = score_font.render(str(remaining_time), True, (red, green, 0))
-        time_text_rect = time_text.get_rect()
-        time_text_rect.midtop = (screenwidth / 2, 10)
-        if remaining_time > 0:
-            screen.blit(time_text, time_text_rect)
+            if 5 < remaining_time <= 9:
+                rgb = (255,165,0)
+            if remaining_time <= 5:
+                rgb = (255,0,0)
+            hud_data = str(remaining_time)
 
-    def display_score(self):
-        score_text = score_font.render(str(level.current_score), True, (0, 255, 0))
-        score_text_rect = score_text.get_rect()
-        score_text_rect.midtop = (screenwidth / 2, 10)
-        screen.blit(score_text, score_text_rect)
+        # display the current score, calculated by using the score of the enemies
+        if self.game_mode in ('Endless', 'Gauntlet'):
+            hud_data = str(self.current_score)
 
-    def display_kills(self):
-        remaining_enemies = self.current_level_total_enemies - self.defeated_enemies
-        kill_text = score_font.render(str(remaining_enemies), True, (255,255,255))
-        kill_text_rect = kill_text.get_rect()
-        kill_text_rect.midtop = (screenwidth / 2, 10)
-        if remaining_enemies > 0:
-            screen.blit(kill_text, kill_text_rect)
+        if self.game_mode == '(UN-USED) REMAINING_ENEMIES':
+            hud_data = str(self.current_level_total_enemies - self.defeated_enemies)
+
+        # create the text box and set its co-ordinates
+        hud_text = text_setter(hud_data,HUD_font,50,rgb)
+        hud_text_rect = hud_text.get_rect()
+        hud_text_rect.midtop = (screenwidth / 2, 10)
+
+        # blit to screen, with some temporary code to make it disappear at time = 0
+        if self.game_mode == 'Survive':
+            if remaining_time > 0:
+                screen.blit(hud_text, hud_text_rect)
+        if not self.game_mode == 'Survive':
+            screen.blit(hud_text, hud_text_rect)
 
 
 # need to set better boundaries by including the size of the sprite in the calculation
@@ -810,7 +908,7 @@ class Wedge(Enemy):
         # kill once off-screen
         if self.rect.y >= screenheight + self.sprite_height:
             enemies.remove(self)
-            level.defeated_enemies += 1
+            game.level.defeated_enemies += 1
 
 class Palm(Enemy):
     def __init__(self, x, y):
@@ -845,7 +943,7 @@ class Palm(Enemy):
         # kill once off-screen
         if 0 - self.sprite_width > self.rect.x >= screenwidth + self.sprite_width:
             enemies.remove(self)
-            level.defeated_enemies += 1
+            game.level.defeated_enemies += 1
 
 class Player(pygame.sprite.Sprite):
 
@@ -879,20 +977,25 @@ class Player(pygame.sprite.Sprite):
         self.speed = 6
         self.boost_speed = 10
         self.folder_path = None
+
+        # shooting
+        self.fire_mode = 'increasing'
+        self.fire_rate_stage = 1  # to make toggles of firepower one way only
         self.cooldown_counter = 0  # how long the delay is before the first bullet fired + general counter
         self.concurrent_bullets = 1  # refers to how many bullets, current code limits to 2 or 3 visually
                                     # if plan to use this, need to change the random.choice to be ifs for 2, 3 etc
         self.cooldown_rate = 8  # lower is faster
         self.bullet_direction = 0
-    # def all(self):
-    #     self.check_in_bounds()
-    #     self.user_input_and_change_xy_pos()
-    #     # self.player_status()
-    #     self.animate()
-    #     self.get_direction_and_rotate_player_sprite()
-    #     self.boost_button()
-    #     self.update_on_screen_position()
-    #     self.shots_fired()
+
+    def run(self):
+        self.check_in_bounds()
+        self.user_input_and_change_xy_pos()
+        self.animate()
+        self.get_direction_and_rotate_player_sprite()
+        self.boost_button()
+        self.update_on_screen_position()
+        self.adjust_fire_rate()
+        self.shots_fired()
 
     def get_direction_and_rotate_player_sprite(self):
 
@@ -910,45 +1013,6 @@ class Player(pygame.sprite.Sprite):
             for key, rotation_angle in key_values.items():
                 if keys[key]:
                     self.rotation_angle = rotation_angle
-            # # cardinal directions
-            # if keys[pygame.K_w]:
-            #     self.rotation_angle = 0
-            # if keys[pygame.K_a]:
-            #     self.rotation_angle = 90
-            # if keys[pygame.K_s]:
-            #     self.rotation_angle = 180
-            # if keys[pygame.K_d]:
-            #     self.rotation_angle = 270
-
-        # failed attempt
-        # if arrow_keys_sum == 2:
-        #     self.rotation_angle = 0
-        #     for key, rotation_angle in key_values.items():
-        #         if keys[key]:
-        #             self.rotation_angle += rotation_angle
-        #     if self.rotation_angle == 360:
-        #         self.rotation_angle = 270
-        #     if self.rotation_angle <= 270:
-        #         self.rotation_angle /= 2
-        #     if self.rotation_angle > 270:
-        #         self.rotation_angle /= 2
-        # print(self.rotation_angle)
-
-
-        #
-        #
-        # key_values = {pygame.K_w: 0, pygame.K_a: 90, pygame.K_s: 180, pygame.K_d: 270}
-        # self.rotation_angle = 0
-        # for key, rotation_angle in key_values.items():
-        #     if keys[key]:
-        #         self.rotation_angle += rotation_angle
-        #
-        # print(self.rotation_angle)
-        #
-        # if arrow_keys_sum > 1 and self.rotation_angle > 180:
-        #     self.rotation_angle += 45
-        # if arrow_keys_sum > 1 and self.rotation_angle < 180:
-        #     self.rotation_angle -= 45
 
         # diagonals
         if keys[pygame.K_a] and keys[pygame.K_w]:
@@ -1057,44 +1121,52 @@ class Player(pygame.sprite.Sprite):
             enemies.remove(enemy)
         self.concurrent_bullets = 1
         self.cooldown_rate = 8
-        level.max_enemies = 5
         self.rotation_angle = 0
         for bullet in bullets:
             bullets.remove(bullet)
         player.is_alive = True
-        level.current_level_total_enemies = 0
-        level.defeated_enemies = 0
-        level.spawned_enemies = 0
-        level.total_frames_elapsed = 0
-        level.seconds_elapsed = 0
-        level.announcement_played = False
-        level.endless_mode = False
-        level.music_playing = False
-        level.data = dict(spawn_data)
         global frame_counter, total_frames
         frame_counter = 0
         total_frames = 0
         player.rect.centerx = screenwidth / 2
         player.rect.centery = screenheight / 2
-        level.temporaryself_bg_ogg.fadeout(1000)
-        level.level_complete = False
-        if not level.game_mode == "Endless":
-            level.current_score = 0
-            menu.current_screen = 'main_menu'
-            menu.current_screen = 'main_menu'
-        if level.game_mode == 'Endless':
-            menu.current_screen = 'show_highscore'  # temporary
+        game.level.temporaryself_bg_ogg.fadeout(1000)
 
-        menu.current_mode = 'MenuSystem'
-        # can place part of player.animate() here later
+        game.mode = 'MenuSystem'
 
 
 
+    def adjust_fire_rate(self):
+        # this function changes the rate at which bullets are fired and how many bullets are fired at once,
+        # dictated by the fire_mode which is dictated by the current_level passed when player is created
+
+        # for now, it is unfinished and just set to 'increasing', because 'level' does not yet create 'player'
+
+        if self.fire_mode == 'increasing':
+            if len(enemies) < 20 and self.fire_rate_stage == 1:
+                self.concurrent_bullets = 1
+                self.cooldown_rate = 8
+                self.fire_rate_stage = 2
+            if len(enemies) >= 20 and self.fire_rate_stage == 2:
+                self.concurrent_bullets = 3
+                self.cooldown_rate = 2
+                self.fire_rate_stage = 3
+            if len(enemies) > 100 and self.fire_rate_stage == 3:
+                self.concurrent_bullets = 3
+                self.cooldown_rate = 1
+
+        if self.fire_mode == 'pacifist':
+            self.concurrent_bullets = 0
+
+        if self.fire_mode == 'weak':
+            self.concurrent_bullets = 1
+            self.cooldown_rate = 8
+
+        if self.fire_mode == 'strong':
+            self.concurrent_bullets = 3
+            self.cooldown_rate = 2
 
     def shots_fired(self):
-        # keys = pygame.key.get_pressed()
-
-
 
         arrow_keys = [pygame.K_UP, pygame.K_LEFT, pygame.K_DOWN, pygame.K_RIGHT]
         arrow_keys_pressed = [keys[key] for key in arrow_keys]
@@ -1108,90 +1180,55 @@ class Player(pygame.sprite.Sprite):
                 if keys[key]:
                     self.bullet_direction = rotation_angle
                     self.create_bullet()
-                    # for i in range(self.concurrent_bullets):
-                    #     bullet = Bullet()
-                    #     bullets.add(bullet)
-                    # bullet_sound = pygame.mixer.Sound(f'sound/laser.ogg')
-                    # bullet_sound.set_volume(0.1)
-                    # bullet_sound.play()
-                    # self.cooldown_counter = self.cooldown_rate
-        # if arrow_keys_sum == 2:
-        #     if keys[pygame.K_LEFT] and keys[pygame.K_UP]:
-        #         self.bullet_direction = 45
-        #     if keys[pygame.K_LEFT] and keys[pygame.K_DOWN]:
-        #         self.bullet_direction = 135
-        #     if keys[pygame.K_RIGHT] and keys[pygame.K_DOWN]:
-        #         self.bullet_direction = 225
-        #     if keys[pygame.K_RIGHT] and keys[pygame.K_UP]:
-        #         self.bullet_direction = 315
-        #     self.create_bullet()
-
-
 
         # lower the cooldown by 10 per second
         if self.cooldown_counter > 0:
             if frame_counter % 6 == 0:
                 self.cooldown_counter -= 1
 
-        # if self.cooldown == 0:
-        #     if keys[pygame.K_UP]:
-        #         self.bullet_direction = 0
-        #     if keys[pygame.K_DOWN]:
-        #         self.bullet_direction = 180
-        #     if keys[pygame.K_LEFT]:
-        #         self.bullet_direction = 90
-        #     if keys[pygame.K_RIGHT]:
-        #         self.bullet_direction = 270
-
-            # if keys[pygame.K_UP] or keys[pygame.K_DOWN] or keys[pygame.K_RIGHT] or keys[pygame.K_LEFT]:
-            #     for i in range(self.ship_level):
-            #         bullet = Bullet()
-            #         bullets.add(bullet)
-            #     self.cooldown = self.firing_rate
-
     def create_bullet(self):
-        for i in range(self.concurrent_bullets):
-            bullet = Bullet()
-            bullets.add(bullet)
-        bullet_sound = pygame.mixer.Sound(f'sound/laser.ogg')
-        bullet_sound.set_volume(0.3)
-        bullet_sound.play()
-        self.cooldown_counter = self.cooldown_rate
-        # if self.cooldown_counter == 0:
-        #     for key, rotation_angle in key_values.items():
-        #         if keys[key]:
-        #             self.bullet_direction = rotation_angle
-        #             for i in range(self.concurrent_bullets):
-        #                 bullet = Bullet()
-        #                 bullets.add(bullet)
-        #             bullet_sound = pygame.mixer.Sound(f'sound/laser.ogg')
-        #             bullet_sound.set_volume(0.1)
-        #             bullet_sound.play()
-        #             self.cooldown_counter = self.cooldown_rate
+        # creates as many bullets as specified in player's init
+        if self.concurrent_bullets > 0:
+            for i in range(self.concurrent_bullets):
+                bullet = Bullet(self.bullet_direction, self.rect.centerx, self.rect.centery)
+                bullets.add(bullet)
+            bullet_sound = pygame.mixer.Sound(f'sound/laser.ogg')
+            bullet_sound.set_volume(0.3)
+            bullet_sound.play()
 
+            # adjust how long the cooldown is between each bullet by altering the cooldown_rate
+            self.cooldown_counter = self.cooldown_rate
 
     def update_on_screen_position(self):
-        # screen.blit(self.hitboxImg, (self.rect.x, self.rect.y))
-        screen.blit(self.playerImg, (self.rect.x-self.sprite_width/2+self.hitboxImg.get_width()/2,
-                                     self.rect.y-self.sprite_height/2+self.hitboxImg.get_width()/2))
-        # screen.blit(self.hitboxImg, (self.rect.x, self.rect.y))
-        # print(self.playerImg.get_height()/self.hitboxImg.get_width())
+        # reset to center of rectangle
+        re_calibrate_rect_x = self.rect.x-self.sprite_width/2
+        re_calibrate_rect_y = self.rect.y-self.sprite_height/2
+
+        # add 1/2 size of hitboxImg, so player image is centered over the hitbox
+        adjusted_player_rect_x = re_calibrate_rect_x + self.hitboxImg.get_width()/2
+        adjusted_player_rect_y = re_calibrate_rect_y + self.hitboxImg.get_height()/2
+
+        # draw to screen
+        screen.blit(self.playerImg, (adjusted_player_rect_x, adjusted_player_rect_y))
+
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self):
+
+    # direction = direction player is facing when bullet created
+    # start_points = player's x and y position when bullet created
+    def __init__(self, direction, start_point_x, start_point_y):
         super().__init__()
         self.image = pygame.image.load(f'graphics/bullets/{self.__class__.__name__.lower()}/1.png')
         self.image_ratio = (self.image.get_width()/self.image.get_height())
         self.image_size_percent = 0.5
         self.scaled_width = int(screenwidth * self.image_size_percent / 100)
         self.scaled_height = int(self.scaled_width / self.image_ratio)
-        self.image = pygame.transform.scale(self.image, (self.scaled_width, self.scaled_height))  # can be deleted?
+        self.image = pygame.transform.scale(self.image, (self.scaled_width, self.scaled_height))
         self.sprite_width = self.image.get_width()
         self.sprite_height = self.image.get_height()
         self.rect = self.image.get_rect()
-        self.rect.center = [player.rect.centerx, player.rect.centery]
-        # self.rect.center = [player.rect.centerx + random.randint(-2, 2), player.rect.centery + random.randint(-2, 2)]
-        self.direction = player.bullet_direction
+        self.rect.center = [start_point_x, start_point_y]
+        self.direction = direction
         self.veer = random.choice([-1,0,1])
         #preferences
         self.speed = 20
@@ -1221,28 +1258,18 @@ class Bullet(pygame.sprite.Sprite):
     def hit_detection(self):
         for enemy in enemies:
             if self.rect.colliderect(enemy.rect):
-                level.current_score += enemy.score_value
+                game.level.current_score += enemy.score_value
                 enemies.remove(enemy)
                 bullets.remove(self)
-                level.defeated_enemies += 1
+                game.level.defeated_enemies += 1
 
+game = Game()
+# menu = MenuSystem(game.get_info_from_menu)  # temporary
+# level = Level()
 
-# god = God()
-menu = MenuSystem()
-level = Level()
-player = Player()
-# bullet = Bullet()
 enemies = pygame.sprite.Group()
 bullets = pygame.sprite.Group()
-
-
-
-
-
-# level.create_enemy('bouncer', 1)
-# level.create_enemy('twirler', 1)
-# level.create_enemy('seeker', 1)
-# level.create_enemy('wedge', 1)
+player = Player()
 
 running = True
 while running:
@@ -1254,20 +1281,12 @@ while running:
 
     keys = pygame.key.get_pressed()
     frame_tracker()
-    if menu.current_mode == 'MenuSystem':
-        menu.run()
-        # frame_tracker()
-    if menu.current_mode == 'game':
-        # frame_tracker()
-        level.update()
 
-        player.check_in_bounds()
-        player.user_input_and_change_xy_pos()
-        player.animate()
-        player.get_direction_and_rotate_player_sprite()
-        player.boost_button()
-        player.update_on_screen_position()
-        player.shots_fired()
+    game.run()
+
+    if game.mode == 'game':
+
+        player.run()
 
         for enemy in enemies:
             enemy.movement_method()
@@ -1283,14 +1302,12 @@ while running:
             bullet.hit_detection()
 
 
-
     #################################
     ### this section just for FPS ###
     fps = clock.get_fps()
-    text = fps_font.render(str(round(fps, 1)), True, (255, 255, 255))
-    text_rect = text.get_rect()
-    text_rect.topleft = (10, 10)
-    screen.blit(text, text_rect)
+    fps_text = text_setter(math.floor(fps),fps_font,20,(255,255,255))
+    fps_text_rect = create_rect_with_pos(fps_text,25,5)
+    screen.blit(fps_text, fps_text_rect)
     #################################
     pygame.display.flip()
     # print(level.seconds_elapsed)
