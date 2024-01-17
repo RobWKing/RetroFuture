@@ -1,5 +1,7 @@
 import pygame, random, math, os
 from spawns import spawn_data, calculate_total_enemies
+# from regular_spawns import spawn_data  # toggle to make Gauntlet mode easier
+from gauntlet_messages import messages
 pygame.init()
 
 screenwidth = 1200
@@ -8,8 +10,6 @@ screen = pygame.display.set_mode((screenwidth, screenheight))
 clock = pygame.time.Clock()
 frame_counter = 0
 total_frames = 0
-player_x = 0
-player_y = 0
 icon = pygame.image.load('graphics/misc/retroFutureTumblr.png')
 pygame.display.set_icon(icon)
 pygame.display.set_caption("Retro Future")
@@ -35,6 +35,16 @@ def frame_tracker():
         total_frames += 1
         # level.seconds_elapsed = round(total_frames / 60, 2)
 
+def clear_globals():
+    global frame_counter, total_frames
+
+    for enemy in enemies:
+        enemies.remove(enemy)
+    for bullet in bullets:
+        bullets.remove(bullet)
+
+    frame_counter = 0
+    total_frames = 0
 # more beautiful way to track frames without global variable, but less efficient
 # requires changing all instances of frame_counter to tracker(), calling the function versus just reading a global variable
 # def frame_tracker():
@@ -53,7 +63,7 @@ def frame_tracker():
 
 
 class MenuSystem:
-    def __init__(self, pass_info_to_menu, current_score):
+    def __init__(self, pass_info_to_menu, current_score, game_played, level_completed, previous_mode, previous_difficulty, gauntlet_level):
         self.current_mode = 'MenuSystem'
         self.current_screen = 'splash_screen'
         self.BgImg = None  # this is set in the run() function based on what self.current_screen is
@@ -66,35 +76,200 @@ class MenuSystem:
         self.cursor_rotation_direction = 1
         self.current_cursor_position = 0
         self.cursor_cooldown = 0
+        self.cursor_reset = False
 
         # logic
         self.pass_info = pass_info_to_menu
         self.difficulty = None
-        self.current_level = None
-        self.game_mode = None
+        self.current_level = gauntlet_level
+
+        self.game_mode = previous_mode
+        self.sound_played = False
+        self.announcement_played = False
 
         # to receive from level later
-
         self.current_score = current_score
+        self.gauntlet_level = gauntlet_level
+        self.create_next_gauntlet = False
+        self.game_played = game_played
+        self.level_completed = level_completed
+        self.previous_mode = previous_mode
+        self.previous_difficulty = previous_difficulty
+
+    def previous_level_win_or_lose(self):
+        if self.game_played:
+
+            # if victorious on Gauntlet/Survive mode:
+            if self.level_completed:
+                if self.previous_mode == 'Gauntlet':
+                    self.gauntlet_transition()
+                    # print('played gauntlet')
+
+                if self.previous_mode == 'Survive':
+                    self.show_survive_victory()
+
+            # if the player died on Endless:
+            if self.previous_mode == 'Endless':
+                self.show_highscore()
+
+            # if the player died on Gauntlet/Survive mode:
+            if self.previous_mode in ('Gauntlet', 'Survive') and self.level_completed is False:
+                self.gauntlet_level = 1
+                self.pass_info_to_game()
+                self.show_death_screen()
+
+    def show_highscore(self):
+
+        self.play_death_sound()
+
+        # load the score for the difficulty mode of the last game played
+        file_path = f'scores_{self.previous_difficulty}.lp'
+
+        with open(file_path, "r") as file:
+            current_highscore = int(file.read())
+
+        if self.current_score > current_highscore:
+            current_highscore = self.current_score
+
+            with open(file_path, "w") as file:
+                file.write(str(current_highscore))
+
+        # variables to establish name of scores, put them into a list then pass the list to create text on screen
+        difficulty = self.previous_difficulty+' Mode'
+        record_score = 'Record Highscore: ' + str(current_highscore)
+        current_score = 'Your score: ' + str(self.current_score)
+        # the variables that will be blitted onto the screen
+        menu_options = [difficulty, record_score, current_score, 'Press Enter to return to main menu']
+
+        # to calculate even spacing across the y-axis of the page
+        number_of_options = len(menu_options)
+        text_size = 20
+        total_spacing = screenheight - (number_of_options * text_size)
+        spacing = total_spacing // (number_of_options + 1)
+
+        # iterates through the list of menu options and creates the text and the rectangle for it,
+        # with it's co-ords set to be evenly spaced across the screen in a vertical list
+        menu_options_dictionary = {}
+        current_item = 1
+
+        for option in menu_options:
+            menu_text = text_setter(option,
+                                    menu_font,
+                                    text_size)
+            rect = create_rect_with_pos(menu_text,
+                                        screenwidth/2,
+                                        spacing*current_item)
+            current_item += 1
+            menu_options_dictionary[menu_text] = rect
+
+        # draw items on-screen
+        for menu_text, rects in menu_options_dictionary.items():
+            screen.blit(menu_text, rects)
+
+        # return to menu otherwise
+        if keys[pygame.K_RETURN]:
+            self.sound_played = False
+            self.previous_mode = None
+            self.game_played = False
+
+
+    def gauntlet_transition(self):
+        text = messages[self.gauntlet_level]
+        text = text_setter(text, menu_font, 15)
+        text_rect = create_rect_with_pos(text, screenwidth/2, screenheight/3)
+        screen.blit(text, text_rect)
+
+        if keys[pygame.K_RETURN]:
+            if self.current_level == 10:
+                self.current_level = 1
+                self.gauntlet_level = 1
+                self.previous_mode = None
+                self.game_played = False
+                self.current_mode = 'MenuSystem'
+                self.pass_info_to_game()
+            else:
+                self.create_next_gauntlet = True
+                self.current_mode = 'game'
+                self.pass_info_to_game()
+
+    def show_survive_victory(self):
+        self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/12.png'), (screenwidth, screenheight))
+        screen.blit(self.BgImg, (0,0))
+
+        # audio
+        if self.announcement_played is False:
+            mission_complete = pygame.mixer.Sound('sound/announcer/mission_completed.wav')
+            mission_complete.play()
+            self.announcement_played = True
+
+        # on-screen text
+        text = f'Congratulations! You survived! Press Enter to continue.'
+        text = text_setter(text,menu_font,20,)
+        text_rect = create_rect_with_pos(text,screenwidth/2,screenheight/3)
+        screen.blit(text, text_rect)
+
+        # return to menu otherwise
+        if keys[pygame.K_RETURN]:
+            self.sound_played = False
+            self.previous_mode = None
+            self.game_played = False
+
+    def play_death_sound(self):
+        #play sound
+        if self.sound_played is False:
+
+            options = ['brass', 'buzzer', 'failure', 'ooh', 'piano', 'retro', 'wompwomp']
+            option = random.choice(options)
+
+            sound = pygame.mixer.Sound(f'sound/death/{option}.ogg')
+            sound.play()
+            self.sound_played = True
+
+    def show_death_screen(self):
+
+        self.play_death_sound()
+
+        if self.previous_mode == 'Survive':
+            text = 'Nice try! Back to the menu with you. Press Enter to continue.'
+        elif self.previous_mode == 'Gauntlet':
+            text = 'You have failed the Gauntlet. Back to square one. Press Enter.'
+        text = text_setter(text, menu_font, 18)
+        text_rect = create_rect_with_pos(text,
+                                         screenwidth/2,
+                                         screenheight/3)
+
+        screen.blit(text, text_rect)
+
+        # return to menu otherwise
+        if keys[pygame.K_RETURN]:
+            self.sound_played = False
+            self.previous_mode = None
+            self.game_played = False
 
     def pass_info_to_game(self):
-        self.pass_info(self.difficulty, self.current_level, self.game_mode, self.current_mode)
+        self.pass_info(self.difficulty, self.current_level, self.game_mode, self.current_mode, self.create_next_gauntlet)
 
     def run(self):
-        # blit the background
-        self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{self.current_screen}.png'),
-                                            (screenwidth, screenheight))
-        screen.blit(self.BgImg, (0, 0))
+        # show a black screen and run the post-game screen for previous level
+        if self.game_played:
+            screen.fill((0, 0, 0))
+            self.previous_level_win_or_lose()
 
-        # runs the function for whichever screen the game is currently on
-        run_current_screen = getattr(self, self.current_screen)
-        run_current_screen()
+        if not self.game_played:
+            # blit the background
+            self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{self.current_screen}.png'),
+                                                (screenwidth, screenheight))
+            screen.blit(self.BgImg, (0, 0))
 
-        if self.current_screen in ('main_menu', 'choose_difficulty_screen'):
-            self.menu_navigator()
-            self.menu_button_cooldown()
+            # runs the function for whichever screen the game is currently on
+            run_current_screen = getattr(self, self.current_screen)
+            run_current_screen()
 
-        self.pass_info_to_game()
+            if self.current_screen in ('main_menu', 'choose_difficulty_screen'):
+                self.menu_navigator()
+                self.menu_button_cooldown()
+
+            self.pass_info_to_game()
 
     def obtain_menu_navigation_coordinates(self, dictionary):
         # get and set navigation co_ordinates
@@ -105,6 +280,7 @@ class MenuSystem:
     def menu_button_cooldown(self):
         if self.cursor_cooldown > 0:
             self.cursor_cooldown -= 1
+
     def menu_navigator(self):
 
         # create cursor
@@ -128,7 +304,7 @@ class MenuSystem:
         # x co-ordinate fixed at center of screen
         cursor_rect.x = screenwidth/2 - (cursor_width/2)
 
-        # y co-ordinate determined by list options
+        # take direction input and determine whether movement is allowed + possible
         if self.cursor_cooldown == 0:
             if keys[pygame.K_s]:
                 if self.current_cursor_position < len(self.current_menu_navigation_coordinate)-1:
@@ -140,7 +316,7 @@ class MenuSystem:
                     self.current_cursor_position -= 1
                     self.cursor_cooldown = 15
 
-
+        # y co-ordinate determined by list options
         cursor_rect.y = self.current_menu_navigation_coordinate[self.current_cursor_position]+10
 
         # draw cursor
@@ -149,7 +325,7 @@ class MenuSystem:
         # handle going back to main_menu
         if keys[pygame.K_ESCAPE]:
             self.current_screen = 'main_menu'
-
+            self.cursor_reset = False
 
     def splash_screen(self):
 
@@ -184,6 +360,7 @@ class MenuSystem:
             self.cursor_cooldown = 15
 
     def main_menu(self):
+
 
         # variables to establish names of menu items which also align with level.game_mode,
         # the values in options_to_level_mapping are self.currentlevel values
@@ -224,31 +401,31 @@ class MenuSystem:
                     option_name = menu_options[(rect.y//spacing)-1]
                     self.game_mode = option_name
                     self.current_level = options_to_level_mapping[option_name]
-                    # level.game_mode = option_name
-                    # level.current_level = options_to_level_mapping[option_name]
-                    # level.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{level.current_level}.png'),
-                    #                                      (screenwidth, screenheight))
+                    if self.game_mode == 'Gauntlet':
+                        self.current_level = self.gauntlet_level  # this does nothing
+                        self.current_mode = 'game'
                     self.current_screen = 'choose_difficulty_screen'
-                    # print('level.game_mode:', level.game_mode, '| self.current_level: ', level.current_level)
 
         if self.cursor_cooldown == 0:
             if keys[pygame.K_RETURN]:
                 option_name = menu_options[self.current_cursor_position]
                 self.game_mode = option_name
                 self.current_level = options_to_level_mapping[option_name]
-                # level.game_mode = option_name
-                # level.current_level = options_to_level_mapping[option_name]
-                # level.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{level.current_level}.png'),
-                #                                      (screenwidth, screenheight))
+                if self.game_mode == 'Gauntlet':
+                    self.current_level = self.gauntlet_level
+                    self.current_mode = 'game'
                 self.current_screen = 'choose_difficulty_screen'
-                self.current_cursor_position = 0
                 self.cursor_cooldown = 15
 
         # get and set navigation co_ordinates for UI navigation
         self.obtain_menu_navigation_coordinates(menu_options_dictionary)
 
     def choose_difficulty_screen(self):
-
+        if self.cursor_reset is False:
+            self.current_cursor_position = 0
+            self.cursor_reset = True
+        # choose between the two difficulties listed in menu options, then use the below information
+        # to create co-ordinates to evenly space them across the screen
         menu_options = ['Regular', 'Challenging']
         number_of_options = len(menu_options)
         text_size = 20
@@ -280,22 +457,19 @@ class MenuSystem:
                 if rect.collidepoint(mouse_pos):
                     option_name = menu_options[(rect.y//spacing)-1]
                     self.difficulty = option_name
-                    # level.difficulty = option_name
                     self.current_mode = 'game'
+
 
         # do effectively the same thing, but with key inputs, and related to the cursor's current position
         if self.cursor_cooldown == 0:
             if keys[pygame.K_RETURN]:
                 option_name = menu_options[self.current_cursor_position]
                 self.difficulty = option_name
-                # level.difficulty = option_name
-                self.current_cursor_position = 0
                 self.current_mode = 'game'
+
 
         # get and set navigation co_ordinates for UI navigation
         self.obtain_menu_navigation_coordinates(menu_options_dictionary)
-
-
 
 class Game:
     def __init__(self):
@@ -312,102 +486,52 @@ class Game:
         # from level
         self.current_score = 0
         self.previous_mode = None
+        self.game_played = False
+        self.level_completed = False
+
 
         # unused for gauntlet mode later, probably don't actually need this
         self.gauntlet_level = 1
-        # need to find a way to communicate whether level was won or lost to know what to tell menu to render
+        self.create_next_gauntlet = False
 
     def create_menu(self):
-        self.menu = MenuSystem(self.get_info_from_menu, self.current_score)
+        self.menu = MenuSystem(self.get_info_from_menu, self.current_score,
+                               self.game_played, self.level_completed,
+                               self.previous_mode, self.difficulty,
+                               self.gauntlet_level)
 
     def create_level(self):
-        self.level = Level(self.difficulty, self.current_level, self.game_mode, self.get_info_from_level)
-    def get_info_from_menu(self, difficulty, current_level, game_mode, mode):
+        self.level = Level(self.difficulty, self.current_level, self.game_mode,
+                           self.get_info_from_level, self.gauntlet_level)
+
+    def get_info_from_menu(self, difficulty, current_level, game_mode, mode, create_next_gauntlet):
         self.difficulty = difficulty
         self.current_level = current_level
         self.game_mode = game_mode
         self.mode = mode
+        self.create_next_gauntlet = create_next_gauntlet
 
-    def get_info_from_level(self, current_score, previous_mode, gauntlet_level):
+    def get_info_from_level(self, current_score, previous_mode, gauntlet_level, level_completed, game_played):
         self.current_score = current_score
         self.previous_mode = previous_mode
         self.gauntlet_level = gauntlet_level
-
-    def show_highscore(self):
-
-        if self.difficulty == 'Regular':
-            file_path = "scores_regular.lp"
-        else:  # elif level.difficulty == 'Challenging':
-            file_path = "scores_difficult.lp"
-
-        with open(file_path, "r") as file:
-            current_highscore = int(file.read())
-
-        if self.current_score > current_highscore:
-            current_highscore = self.current_score
-
-            with open(file_path, "w") as file:
-                file.write(str(current_highscore))
-
-        # variables to establish name of scores, put them into a list then pass the list to create text on screen
-        difficulty = self.difficulty+' Mode'
-        record_score = 'Record Highscore: ' + str(current_highscore)
-        current_score = 'Your score: ' + str(self.current_score)
-        # the variables that will be blitted onto the screen
-        menu_options = [difficulty, record_score, current_score, 'Press Enter to return to main menu']
-
-        # to calculate even spacing across the y-axis of the page
-        number_of_options = len(menu_options)
-        text_size = 20
-        total_spacing = screenheight - (number_of_options * text_size)
-        spacing = total_spacing // (number_of_options + 1)
-
-        # iterates through the list of menu options and creates the text and the rectangle for it,
-        # with it's co-ords set to be evenly spaced across the screen in a vertical list
-        menu_options_dictionary = {}
-        current_item = 1
-
-        for option in menu_options:
-            menu_text = text_setter(option,
-                                    menu_font,
-                                    text_size)
-            rect = create_rect_with_pos(menu_text,
-                                        screenwidth/2,
-                                        spacing*current_item)
-            current_item += 1
-            menu_options_dictionary[menu_text] = rect
-
-        # draw items on-screen
-        for menu_text, rects in menu_options_dictionary.items():
-            screen.blit(menu_text, rects)
-
-        # return to menu otherwise
-        if keys[pygame.K_RETURN]:
-            self.previous_mode = None
+        self.level_completed = level_completed
+        self.game_played = game_played
 
     def run(self):
-
         # creates and runs levels and menus depending on the current self.mode. Also shows highscores in the case
         # that the previous level was 'Endless' mode. show_highscore() then resets previous_mode to None, and self.menu
         # is created in the next loop
+
 
         if self.mode == 'MenuSystem':
 
             self.level = None
             # clear enemies and bullets
-            for enemy in enemies:
-                enemies.remove(enemy)
-            for bullet in bullets:
-                bullets.remove(bullet)
-
+            clear_globals()
 
             if self.menu is None:
-                # if the previous game was endless, show the scores (other modes aren't score-based)
-                if self.previous_mode == 'Endless':
-                    self.show_highscore()
-                # otherwise, create a new menu
-                else:
-                    self.create_menu()
+                self.create_menu()
 
             else:
                 self.menu.run()
@@ -422,7 +546,7 @@ class Game:
             self.level.run()
 
 class Level:
-    def __init__(self, difficulty, current_level, game_mode, pass_info_to_menu):
+    def __init__(self, difficulty, current_level, game_mode, pass_info_to_game, gauntlet_level):
         self.current_level = current_level
         # 900 x 600 is for the temporary image, otherwise later will be screenwidth, screenheight
         self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/{self.current_level}.png'), (screenwidth, screenheight))
@@ -441,6 +565,8 @@ class Level:
         self.current_level_total_enemies = (calculate_total_enemies(spawn_data)).get(self.current_level)
         self.spawned_enemies = 0  # this may now be obsolete
         self.defeated_enemies = 0
+        self.gauntlet_win_condition = False
+        self.gauntlet_level = gauntlet_level
 
         self.max_enemies = 5
         self.max_enemies_endless = 5
@@ -451,14 +577,15 @@ class Level:
 
 
         self.other_level_finished_flag = False  # e.g. touching a portal   UNUSED
-        self.level_complete = False     # UNUSED
+        self.game_played = False
+        self.level_completed = False
 
         self.spawn_cooldown = 0
         self.announcement_played = False
         self.music_playing = False
 
         # share self.current_score, self.game_mode, self.current_level (temporary) to Game
-        self.pass_info = pass_info_to_menu
+        self.pass_info = pass_info_to_game
 
 
         # TEMPORARY
@@ -469,24 +596,32 @@ class Level:
         self.player = None
 
     def create_player(self):
-        fire_mode = ['increasing', 'pacifist', 'weak', 'strong']  # just a reminder, can delete later
-        if self.current_level in (11,12):
+
+        # determine shooting mode
+        shooting_mode = ['increasing', 'pacifist', 'weak', 'strong']  # just a reminder, can delete later
+        if self.current_level in (9,11,12):
             shooting_mode = 'increasing'
-        else:  # if self.current_level in (1,2,3,4,5,6,7,8,9,10):
+        if self.current_level in (4,7):
+            shooting_mode = 'pacifist'
+        if self.current_level in (2,5,6,8,9):
+            shooting_mode = 'strong'
+        if self.current_level in (1,3,10):
             shooting_mode = 'weak'
 
         self.player = Player(shooting_mode)
 
     def pass_info_to_menu(self):
-        self.pass_info(self.current_score, self.game_mode, self.current_level)
-
+        self.pass_info(self.current_score, self.game_mode, self.gauntlet_level, self.level_completed, self.game_played)
 
     def run(self):
+        if self.gauntlet_level > 9:
+            self.gauntlet_level = 1
+        self.game_played = True
 
         screen.blit(self.BgImg, (0, 0))
 
         if self.player is None:
-           self.create_player()
+            self.create_player()
 
         self.set_difficulty()
 
@@ -497,8 +632,10 @@ class Level:
             self.survival_mode_enemies()
 
         elif self.game_mode == 'Gauntlet':
+            self.gauntlet_music()
             self.gauntlet_enemies()
-
+        print('levels game mode:', self.game_mode)
+        print('difficulty:', self.difficulty)
         self.display_timer()
         self.track_seconds_elapsed()
         self.pass_info_to_menu()
@@ -508,13 +645,14 @@ class Level:
 
     def set_difficulty(self):
         if self.difficulty == 'Regular':
-            self.max_enemies = 10
+            self.max_enemies = 15
             self.max_enemies_endless = 30
             self.time_goal = 60
         elif self.difficulty == 'Challenging':
             self.max_enemies = 75
             self.max_enemies_endless = 1000
             self.time_goal = 99
+
     def track_seconds_elapsed(self):
         if frame_counter < 59:
             self.total_frames_elapsed += 1
@@ -522,41 +660,22 @@ class Level:
 
     def level_transition(self):
 
-        survival_win_condition = self.game_mode == 'Survive' and self.time_goal == self.seconds_elapsed
-        endless_win_condition = self.game_mode == 'Endless' and self.player.is_alive is False
+        survival_win_condition = self.game_mode == 'Survive' and self.time_goal <= self.seconds_elapsed
 
-        if survival_win_condition or endless_win_condition:
-            # if ((self.game_mode == 'Survive' and self.time_goal == self.seconds_elapsed)
-            #         or (self.game_mode == 'Endless' and player.is_alive is False)):
+        if survival_win_condition:
+            self.level_completed = True
+            self.pass_info_to_menu()
+            game.level.temporaryself_bg_ogg.fadeout(1000)
+            game.mode = 'MenuSystem'
 
-            self.level_complete = True
-            # self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/transition_bg.png'), (screenwidth, screenheight))
-            self.player.rect.x = screenwidth / 2 - self.player.sprite_width / 2
-            self.player.rect.y = screenheight / 2 - self.player.sprite_height / 2
-            self.BgImg = pygame.transform.scale(pygame.image.load(f'graphics/bg/yay.png'), (screenwidth, screenheight))
-            self.temporaryself_bg_ogg.stop()
-            mission_complete = pygame.mixer.Sound('sound/announcer/mission_completed.wav')
-            mission_complete.play()
-
-            # may only work for endless mode?
-            for enemy in enemies:
-                enemies.remove(enemy)
-            #GAME_ACTIVE = FALSE
-        if self.level_complete:
-            if keys[pygame.K_b]:
-                self.current_level += 1  # this increases every time we press b for now
-
-                # reset other variables
-                self.other_level_finished_flag = False
-                self.current_score = 0
-                self.score_goal = 0  # note this + current_level_total_enemies need to be updated in a function
-                                    # that is called BEFORE level_transition(), later score_goal will be moved to that place
-                                    # or ideally can be updated directly here now that current_level += 1
-                                    # e.g. self.score_goal = level_scores[{self.current_level}]
-                self.defeated_enemies = 0
-                self.spawned_enemies = 0
-                self.seconds_elapsed = 0
-                print('current level', self.current_level)
+        # if self.gauntlet_win_condition:
+        if self.game_mode == 'Gauntlet' and self.defeated_enemies >= self.current_level_total_enemies:
+            if self.spawned_enemies == self.defeated_enemies:
+                self.level_completed = True
+                self.gauntlet_level += 1
+                self.pass_info_to_menu()
+                game.level.temporaryself_bg_ogg.fadeout(1000)
+                game.mode = 'MenuSystem'
 
 
 
@@ -607,12 +726,31 @@ class Level:
 
             self.spawned_enemies += 1
 
+    def gauntlet_music(self):
+        if self.music_playing is False and self.current_level != 1:
+            music_choices = ['', 'chillout', 'stranger-things', 'electronic-groove-party', 'synthwave-vintage',
+                             '8-bit', '8-bit-air-fight', 'chiptune-grooving', 'star-searching', 'area12']
+            music_choice = music_choices[self.current_level]
+            self.temporaryself_bg_ogg = pygame.mixer.Sound(f'sound/music/{music_choice}.ogg')
+            self.temporaryself_bg_ogg.play()
+            self.music_playing = True
     def gauntlet_enemies(self):
 
         self.enemy_patterns()
+        # if self.seconds_elapsed > 1:
+        #     self.defeated_enemies = self.current_level_total_enemies
+        #     self.spawned_enemies = self.defeated_enemies
 
-        if self.defeated_enemies == self.current_level_total_enemies:
-            print('level completed')
+        # level 4 and 7 are pacifist timed levels
+        if self.current_level in (4,7):
+            if self.current_level == 4:
+                self.time_goal = 30
+            if self.current_level == 7:
+                self.time_goal = 15
+            if self.seconds_elapsed > self.time_goal:
+                self.defeated_enemies = self.current_level_total_enemies
+
+
 
     def endless_enemies(self):
 
@@ -673,7 +811,7 @@ class Level:
                     self.temporaryself_bg_ogg.play()
                     # self.endless_mode = True
                     self.music_playing = True
-                if not self.level_complete:
+                if not self.level_completed:
                     self.endless_enemies()
 
 
@@ -682,7 +820,7 @@ class Level:
         rgb = (0,255,0)
 
         # display remaining time if playing Survive mode, change colour to orange and red as nears 0.
-        if self.game_mode == 'Survive':
+        if self.game_mode == 'Survive' or self.current_level in (4,7):
             remaining_time = self.time_goal - math.floor(self.seconds_elapsed)
 
             if 5 < remaining_time <= 9:
@@ -692,7 +830,7 @@ class Level:
             hud_data = str(remaining_time)
 
         # display the current score, calculated by using the score of the enemies
-        if self.game_mode in ('Endless', 'Gauntlet'):
+        if self.game_mode in ('Endless', 'Gauntlet') and self.current_level not in (4,7):
             hud_data = str(self.current_score)
 
         if self.game_mode == '(UN-USED) REMAINING_ENEMIES':
@@ -916,11 +1054,10 @@ class Wedge(Enemy):
         reduce_difference_y = self.speed
 
         self.rect.move_ip(reduce_difference_x, reduce_difference_y)
-
         # kill once off-screen
         if self.rect.y >= screenheight + self.sprite_height:
-            enemies.remove(self)
             game.level.defeated_enemies += 1
+            enemies.remove(self)
             # self.rect.y = self.starting_y
             # self.rect.x = self.starting_x
 
@@ -956,9 +1093,9 @@ class Palm(Enemy):
         self.rect.move_ip(reduce_difference_x, reduce_difference_y)
 
         # kill once off-screen
-        if 0 - self.sprite_width > self.rect.x >= screenwidth + self.sprite_width:
-            enemies.remove(self)
+        if self.rect.x < -200 or self.rect.x > screenwidth + 200:
             game.level.defeated_enemies += 1
+            enemies.remove(self)
             # self.rect.x = self.starting_x_coord
             # self.rect.y = self.starting_y_coord
 class Player(pygame.sprite.Sprite):
@@ -1126,26 +1263,9 @@ class Player(pygame.sprite.Sprite):
 
 
     def kill_player(self):
-        self.is_alive = False
-        self.animation_counter = 0
-        death_sound = pygame.mixer.Sound(f'sound/boom.wav')
-        death_sound.play()
-        # all of this is temporary!, but is a guide to what has to be toggled to restore default state at current time
-        # for enemy in enemies:
-        #     enemies.remove(enemy)
-        # for bullet in bullets:
-        #     bullets.remove(bullet)
-        self.concurrent_bullets = 1
-        self.cooldown_rate = 8
-        self.rotation_angle = 0
-        self.is_alive = True
-        global frame_counter, total_frames
-        frame_counter = 0
-        total_frames = 0
-        self.rect.centerx = screenwidth / 2
-        self.rect.centery = screenheight / 2
         game.level.temporaryself_bg_ogg.fadeout(1000)
-
+        game.gauntlet_level = 1
+        game.current_level = 1
         game.mode = 'MenuSystem'
 
 
@@ -1166,7 +1286,6 @@ class Player(pygame.sprite.Sprite):
             if len(enemies) > 100 and self.fire_rate_stage == 3:
                 self.concurrent_bullets = 3
                 self.cooldown_rate = 1
-
         if self.shooting_mode == 'pacifist':
             self.concurrent_bullets = 0
 
@@ -1310,8 +1429,7 @@ while running:
             bullet.was_fired()
             bullet.delete_bullet()
             bullet.hit_detection()
-    print('enemies', enemies)
-    print('bullets', bullets)
+
 
     #################################
     ### this section just for FPS ###
