@@ -30,3 +30,5 @@ Twirler: Stays in place and rotates 360 degrees. The least threatening enemy.
 The player is a ship that moves in 8 directions and shoots in 4. It actually has a booster activated by the spacebar, though this information is not available outside of the readme, as it's sort of a finished but not well balanced feature, but it seemed a shame to take it out.
 
 The ship has different speeds of firepower depending on conditions set in gauntlet levels or for other types, on the amount of enemies on screen.   The amount of bullets ranges from 0 on pacifist, time-based levels up to firing multiple bullets per turn with very little cooldown. The bullets have slight veer to their path to make it appear more interesting.
+
+The player has no health and dies in one hit. All progress is lost on the gauntlet upon death. It's quite mean, really.
