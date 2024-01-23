@@ -3,7 +3,8 @@ A game based around 80s aesthetic, made in Python using pygame. Pilot your ship 
 
 I made this game out of a love of that 80s squiggly art style visually, and a love of Geometry Wars: Retro Evolved mechanically, which was the hero of the Xbox 360 Live Arcade in the early days of that console's lifespan. I still think it's one of the best games ever.  I played that game a lot, and since I wrote the code for this game on top of that and decided the spawns and behaviours of all the enemies, I may have tuned the game to be quite difficult.
 
-I created this game very crudely without any proper structure, not expecting myself to actually finish the project... but as I liked the style a lot I kept writing more and more code until it became very cool, but also very convoluted.  Different classes were reading and altering variables of each other's objects willynilly. Later I created more of a structure with a Game class handling the menu and the level, with the level then handling the enemy and the player, and finally the bullet object created by the player.  The logic of the game from the ground up was overly mixed up, and it would have taken too long to actually properly separate the classes, so there is a lot of spaghetti code through this. I am able to understand it and could make alterations to it, but I am sure that anybody else would struggle greatly to decipher these hieroglyphs.
+I created this game very crudely without any proper structure, not expecting myself to actually finish the project... but as I liked the style a lot I kept writing more and more code until it became very cool, but also very convoluted.  Different classes were reading and altering variables of each other's objects willynilly. Later I created more of a structure with a Game class handling the menu and the level, with the level then handling the enemy and the player, and finally the bullet object created by the player.  
+The logic of the game from the ground up was overly mixed up, and it would have taken too long to actually properly separate the classes, so there is a lot of spaghetti code through this. I am able to understand it and could make alterations to it, but I am sure that anybody else would struggle greatly to decipher these hieroglyphs.
 
 The basic game is split into 3 game types: Gauntlet, Endless and Survival.
 
@@ -16,10 +17,15 @@ Survival is a combination of a spawn_data set of enemies, followed by endless en
 The enemies are split into 5 types: Seeker, Bouncer, Palm, Wedge and Twirler.
 
 Seeker: Uses the player's co-ordinates to always be moving towards them.
+
 Bouncer: Grabs random co-ordinates around the edge of the arena and moves towards them, picking a new spot when reaching the last.
+
 Palm: Moves from one side of the screen to the other then despawns if not already killed. Picks which side and direction randomly.
+
 Wedge: Falls from the top of the screen to the bottom, then despawns if not already killed. Very similar to Palm.
+
 Twirler: Stays in place and rotates 360 degrees. The least threatening enemy.
+
 
 The player is a ship that moves in 8 directions and shoots in 4. It actually has a booster activated by the spacebar, though this information is not available outside of the readme, as it's sort of a finished but not well balanced feature, but it seemed a shame to take it out.
 
