@@ -634,8 +634,7 @@ class Level:
         elif self.game_mode == 'Gauntlet':
             self.gauntlet_music()
             self.gauntlet_enemies()
-        print('levels game mode:', self.game_mode)
-        print('difficulty:', self.difficulty)
+
         self.display_timer()
         self.track_seconds_elapsed()
         self.pass_info_to_menu()
@@ -778,7 +777,7 @@ class Level:
         if self.spawn_cooldown == 0:
             if len(enemies) < self.max_enemies:
                 if frame_counter % 6 == 0:
-                    choice_weights = [0.4, 0.4, 0.2, 0.2, 0.2]
+                    choice_weights = [0.4, 0.4, 0.9, 0.9, 0.9]
                     enemy_choice = random.choices(['Seeker', 'Bouncer','Wedge', 'Palm', 'Twirler'], weights=choice_weights, k=1).pop()
                     if enemy_choice == 'Seeker' or 'Bouncer':
                         min_max = (1,3)
@@ -916,10 +915,10 @@ class Enemy(pygame.sprite.Sprite):
 
     def check_collision_with_player(self):
         if self.rect.colliderect(self.player.rect):
-            print('boom!')
             enemies.remove(self)
             self.player.kill_player()
             # level.bg_track.fadeout(500)  # example code
+
     def update_on_screen_position(self):
         screen.blit(self.image, self.rect)
 
@@ -959,8 +958,10 @@ class Seeker(Enemy):
 
         self.rect.move_ip(reduce_difference_x, reduce_difference_y)
 
-        if frame_counter % 3 == 0:  # can use this to reduce shake
-            self.rect.move_ip((random.randint(-self.wiggle_quantity,self.wiggle_quantity),)*2)
+
+        # if frame_counter % 3 == 0:  # can use this to reduce shake
+        #     self.rect.move_ip((random.randint(-self.wiggle_quantity,self.wiggle_quantity),)*2)
+
 class Bouncer(Enemy):
     def __init__(self, x, y, player):
 
@@ -1023,6 +1024,22 @@ class Twirler(Enemy):
         if frame_counter % 6 == 0:
             self.rect.move_ip((self.wiggle_quantity,)*2)
             self.wiggle_quantity *= -1
+
+        result_x = self.player.rect.x - (self.rect.topleft[0] + self.sprite_width / 4)
+        result_y = self.player.rect.y - (self.rect.topleft[1] + self.sprite_width / 4)
+
+        if frame_counter % 2 == 0:
+            if result_x >= 0:
+                reduce_difference_x = (result_x > 0) * self.speed
+            else:
+                reduce_difference_x = -1 * self.speed
+
+            if result_y >= 0:
+                reduce_difference_y = (result_y > 0) * self.speed
+            else:
+                reduce_difference_y = -1 * self.speed
+
+            self.rect.move_ip(reduce_difference_x, reduce_difference_y)
 
 class Wedge(Enemy):
     def __init__(self, x, y, player):
