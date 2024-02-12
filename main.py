@@ -679,7 +679,6 @@ class Level:
 
 
     def enemy_patterns(self):
-
         # has become more verbose and can probably be re-shortened, but it works properly now
         for current_level, level_data in self.data.items():
             if current_level == self.current_level:
@@ -777,7 +776,7 @@ class Level:
         if self.spawn_cooldown == 0:
             if len(enemies) < self.max_enemies:
                 if frame_counter % 6 == 0:
-                    choice_weights = [0.4, 0.4, 0.9, 0.9, 0.9]
+                    choice_weights = [0.4, 0.4, 0.4, 0.4, 0.1]
                     enemy_choice = random.choices(['Seeker', 'Bouncer','Wedge', 'Palm', 'Twirler'], weights=choice_weights, k=1).pop()
                     if enemy_choice == 'Seeker' or 'Bouncer':
                         min_max = (1,3)
